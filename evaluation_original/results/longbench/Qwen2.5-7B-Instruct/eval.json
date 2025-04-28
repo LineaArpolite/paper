@@ -1,0 +1,8 @@
+{
+    "triviaqa-full.pkl": 89.27,
+    "multifieldqa_en-full.pkl": 23.31,
+    "narrativeqa-full.pkl": 3.47,
+    "qasper-full.pkl": 10.8,
+    "gov_report-full.pkl": 33.6,
+    "hotpotqa-full.pkl": 10.01
+}

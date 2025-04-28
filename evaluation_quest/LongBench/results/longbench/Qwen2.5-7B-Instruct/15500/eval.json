@@ -1,0 +1,18 @@
+{
+    "qasper-1024.pkl": 10.4,
+    "multifieldqa_en-512.pkl": 21.2,
+    "qasper-512.pkl": 9.69,
+    "multifieldqa_en-4096.pkl": 24.28,
+    "gov_report-2048.pkl": 33.33,
+    "gov_report-1024.pkl": 30.92,
+    "gov_report-512.pkl": 28.34,
+    "multifieldqa_en-2048.pkl": 24.06,
+    "hotpotqa-512.pkl": 8.25,
+    "gov_report-4096.pkl": 33.32,
+    "multifieldqa_en-1024.pkl": 22.29,
+    "qasper-2048.pkl": 10.77,
+    "hotpotqa-2048.pkl": 10.04,
+    "hotpotqa-1024.pkl": 9.57,
+    "hotpotqa-4096.pkl": 10.05,
+    "qasper-4096.pkl": 10.92
+}

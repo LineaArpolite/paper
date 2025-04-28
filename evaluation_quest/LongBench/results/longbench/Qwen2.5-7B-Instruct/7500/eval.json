@@ -1,0 +1,20 @@
+{
+    "narrativeqa-2048.pkl": 3.13,
+    "triviaqa-512.pkl": 87.31,
+    "triviaqa-1024.pkl": 87.89,
+    "multifieldqa_en-512.pkl": 21.64,
+    "narrativeqa-4096.pkl": 3.15,
+    "multifieldqa_en-4096.pkl": 25.14,
+    "gov_report-2048.pkl": 32.45,
+    "gov_report-1024.pkl": 31.31,
+    "triviaqa-4096.pkl": 89.61,
+    "gov_report-512.pkl": 28.05,
+    "multifieldqa_en-2048.pkl": 22.87,
+    "hotpotqa-512.pkl": 7.93,
+    "gov_report-4096.pkl": 33.26,
+    "multifieldqa_en-1024.pkl": 21.98,
+    "triviaqa-2048.pkl": 89.88,
+    "hotpotqa-2048.pkl": 9.27,
+    "hotpotqa-1024.pkl": 8.54,
+    "hotpotqa-4096.pkl": 9.26
+}

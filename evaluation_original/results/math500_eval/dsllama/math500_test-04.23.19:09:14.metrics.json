@@ -1,0 +1,12 @@
+{
+    "overall": {
+        "model_path": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+        "tokens_load_path": null,
+        "em": 0.5875,
+        "acc": 0.6125,
+        "f1": 0.5946428571428571,
+        "math_equal": 0.775,
+        "num_valid_answer": "80 of 80",
+        "query_latency": "0 ms"
+    }
+}

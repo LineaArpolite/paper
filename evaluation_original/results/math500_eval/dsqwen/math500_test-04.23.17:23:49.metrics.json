@@ -1,0 +1,12 @@
+{
+    "overall": {
+        "model_path": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        "tokens_load_path": null,
+        "em": 0.65,
+        "acc": 0.65,
+        "f1": 0.65,
+        "math_equal": 0.8,
+        "num_valid_answer": "20 of 20",
+        "query_latency": "0 ms"
+    }
+}
