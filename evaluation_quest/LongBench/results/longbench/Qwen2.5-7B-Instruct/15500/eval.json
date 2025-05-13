@@ -9,6 +9,7 @@
     "narrativeqa-4096.pkl": 3.3,
     "multifieldqa_en-4096.pkl": 24.28,
     "gov_report-2048.pkl": 33.33,
+    "gov_report-1024.pkl": 30.92,
     "triviaqa-4096.pkl": 85.06,
     "gov_report-512.pkl": 28.34,
     "multifieldqa_en-2048.pkl": 24.06,
