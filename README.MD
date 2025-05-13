@@ -1,6 +1,7 @@
 Personal access tokens (classic):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
+克隆项目：\
+git clone https://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@github.com/LineaArpolite/paper_decoding.git
 
-git clone https://<your_token>@github.com/your-username/your-repo.git
 
 
 
