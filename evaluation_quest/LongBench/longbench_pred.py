@@ -48,7 +48,7 @@ def parse_args(args=None):
     parser.add_argument("--token_budget", type=int, default=None)
     parser.add_argument("--chunk_size", type=int, default=None)
     parser.add_argument("--quest", action="store_true", help="Enable Quest Attention")
-    parser.add_argument("--max_length", type=int, default=15500,
+    parser.add_argument("--max_length", type=int, required=True,
         choices=[7500,15500,31500],
     )
     
@@ -68,6 +68,7 @@ def get_pred(
     model_name,
 ):
     preds = []
+    pred_cxts = []
     for i, json_obj in enumerate(tqdm(data)):#json_obj 是个字典（上下文kv+问题kv+答案kv），对应一个问题。tqdm：是一个 Python 进度条库，用于在循环中显示进度。这里 tqdm(data) 让 data 在迭代时显示进度条。enumerate为数据自动生成索引赋给i
         # if i>=20:
         #     break 
@@ -169,8 +170,23 @@ def get_pred(
         # 可以通过tokenizer.all_special_tokens查看会跳过哪些token
         # pred = tokenizer.decode(generated_content, skip_special_tokens=True)
         
+
+        pred_cxt = tokenizer.decode(generated_token_ids, skip_special_tokens=True)
+
         preds.append(generated_token_ids)
-    return preds #返回一个数据集中所有sample的pred，是token_id列表的列表
+
+        pred_cxts.append(#列表里添加一个字典
+            {
+                "pred": pred_cxt,
+                "answers": json_obj["answers"],
+                "all_classes": json_obj["all_classes"],
+                "length": json_obj["length"],
+            }
+        )
+        del past_key_values
+        torch.cuda.empty_cache()
+        
+    return preds,pred_cxts #返回一个数据集中所有sample的pred，是token_id列表的列表
 
 
 def seed_everything(seed):
@@ -205,12 +221,15 @@ if __name__ == "__main__":
     seed_everything(42)#42 被很多开发者和数据科学家用作 默认的随机种子
     args = parse_args()
     
-    print(f"--------------------task:{args.task}--------------------")
-    print(f"--------------------budget: {args.token_budget}--------------------")
+    
+    
     
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_name = args.model_name_or_path
+
+
+    
     # define your model
     model, tokenizer = load_model_and_tokenizer(
         model_name, device 
@@ -221,6 +240,10 @@ if __name__ == "__main__":
     max_length = args.max_length
 
     print(f"--------------maxlength: {max_length}-----------------")
+    print(f"--------------------model_name: {model_name}--------------------")
+    print(f"--------------------task:{args.task}--------------------")
+    print(f"--------------------budget: {args.token_budget}--------------------")
+    
     datasets_name = [args.task]#arg.task="qasper"/"narrativeqa"/"hotpotqa"/"multifieldqa_en"/"gov_report"/"triviaqa"，但是每次执行只会执行一个任务，所以这里的args.task只会是一个字符串一次python执行只完成一个task
     # we design specific prompt format and max generation length for each task, feel free to modify them to optimize model output
     dataset2prompt = json.load(open("config/dataset2prompt.json", "r"))
@@ -232,7 +255,6 @@ if __name__ == "__main__":
 
     model_name_simple=model_name.split("/")[-1]
     for dataset_name in datasets_name:#dataset_name= "qasper"/"narrativeqa"/"hotpotqa"/"multifieldqa_en"/"gov_report"/"triviaqa"
-        
         data = load_dataset("THUDM/LongBench", dataset_name, split="test")#只用"THUDM/LongBench"的测试集
         if not os.path.exists(f"results/longbench/{model_name_simple}/{max_length}"):
             os.makedirs(f"results/longbench/{model_name_simple}/{max_length}")
@@ -243,7 +265,7 @@ if __name__ == "__main__":
 
         prompt_format = dataset2prompt[dataset_name]#短提示词
         max_gen = dataset2maxlen[dataset_name]#几十一百
-        preds = get_pred(
+        preds ,pred_cxts= get_pred(
             model,
             tokenizer,
             data,#load_dataset得到的数据
@@ -254,6 +276,14 @@ if __name__ == "__main__":
             device,
             model_name,#全称字符串
         )
+
         with open(out_path, "wb") as f:
             pickle.dump(preds, f)#不需要像jsonl一样 f.write("\n")
+
+
+        out_path_json = out_path.split(".pkl")[0] + ".jsonl"
+        with open(out_path_json, "w", encoding="utf-8") as f: # "w"是覆盖写，"a"是追加写
+            for pred_cxt in pred_cxts:
+                json.dump(pred_cxt, f, ensure_ascii=False)
+                f.write("\n")
 

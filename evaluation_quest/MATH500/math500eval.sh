@@ -6,7 +6,7 @@ MODELPATH="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 PRED_DIR=results/math500_pred/dsllama
 EVAL_DIR=results/math500_eval/dsllama
 
-budget=512
+budget=1024
 
 PRED_DIR="${PRED_DIR}_${budget}"
 EVAL_DIR="${EVAL_DIR}_${budget}"
@@ -14,7 +14,7 @@ mkdir -p $PRED_DIR
 mkdir -p $EVAL_DIR
 
 
-python math500_eval_new.py \
+python math500_eval.py \
     --model_name_or_path $MODELPATH \
     --task_name "math500" --dataset_start_idx 0 --dataset_end_idx 500 \
     --pred_dir $PRED_DIR --eval_dir $EVAL_DIR

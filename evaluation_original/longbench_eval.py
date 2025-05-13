@@ -99,7 +99,11 @@ if __name__ == '__main__':
     model_name=args.model_name_or_path
     model_name_simple = model_name.split("/")[-1] 
 
-    path = f"results/longbench/{model_name_simple}/"
+
+    model2maxlen = json.load(open("config/model2maxlen.json", "r"))
+    max_length = model2maxlen[model_name]#几千几万，模型的最大输出长度
+
+    path = f"results/longbench/{model_name_simple}/{max_length}/"
 
     
     tokenizer=AutoTokenizer.from_pretrained(model_name)
@@ -112,7 +116,7 @@ if __name__ == '__main__':
             continue
 
         #获取数据集名称
-        dataset_name = filename.split('-')[0]
+        dataset_name = filename.split('.')[0]
 
         #获取token id列表的列表
         file_path = os.path.join(path, filename)
@@ -135,7 +139,7 @@ if __name__ == '__main__':
         scores[filename] = score
 
 
-    out_path = f"results/longbench/{model_name_simple}/eval.json"
+    out_path = f"{path}eval.json"
     with open(out_path, "w") as f:
         json.dump(scores, f, ensure_ascii=False, indent=4)
 

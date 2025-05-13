@@ -12,7 +12,7 @@ mkdir -p $FULL_OUTPUT_DIR
 
 
 
-python ppl_eval_lidong.py \
+python pg19_eval.py \
     --model_name_or_path $MODELPATH \
     --output_dir $FULL_OUTPUT_DIR \
     --num_eval_tokens 30000 \

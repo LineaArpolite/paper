@@ -1,7 +1,8 @@
 begin_sink_size=16
 local_window_size=512
 
-model="Qwen/Qwen2.5-7B-Instruct" #一个模型对应一个文件夹
+#model="Qwen/Qwen2.5-7B-Instruct" #一个模型对应一个文件夹
+model="meta-llama/Llama-3.1-8B-Instruct"
 
 
 # for task in "qasper" "narrativeqa" "hotpotqa" "multifieldqa_en" "gov_report" "triviaqa"

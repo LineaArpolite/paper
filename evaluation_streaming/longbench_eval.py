@@ -141,7 +141,7 @@ if __name__ == '__main__':
         scores[filename] = score
 
 
-    out_path = f"results/longbench/{model_name_simple}_{args.begin_sink_size}_{args.local_window_size}/eval.json"
+    out_path = f"{path}eval.json"
     with open(out_path, "w") as f:
         json.dump(scores, f, ensure_ascii=False, indent=4)
 

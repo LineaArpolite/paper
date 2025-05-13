@@ -205,10 +205,10 @@ if __name__ == "__main__":
     for dataset_name in datasets_name:#dataset_name= "qasper"/"narrativeqa"/"hotpotqa"/"multifieldqa_en"/"gov_report"/"triviaqa"
         
         data = load_dataset("THUDM/LongBench", dataset_name, split="test")#只用"THUDM/LongBench"的测试集
-        if not os.path.exists(f"results/longbench/{model_name_simple}"):
-            os.makedirs(f"results/longbench/{model_name_simple}")
+        if not os.path.exists(f"results/longbench/{model_name_simple}/{max_length}"):
+            os.makedirs(f"results/longbench/{model_name_simple}/{max_length}")
 
-        out_path = f"results/longbench/{model_name_simple}/{dataset_name}-full.pkl"#没用quest则是full
+        out_path = f"results/longbench/{model_name_simple}/{max_length}/{dataset_name}.pkl"#没用quest则是full
 
         prompt_format = dataset2prompt[dataset_name]#短提示词
         max_gen = dataset2maxlen[dataset_name]#几十一百

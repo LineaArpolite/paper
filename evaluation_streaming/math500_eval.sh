@@ -22,7 +22,7 @@ mkdir -p $EVAL_DIR
 #     --task_name "math500" --dataset_start_idx 0 --dataset_end_idx 20\
 #     --pred_dir $PRED_DIR
 
-python math500_eval_new.py \
+python math500_eval.py \
     --model_name_or_path $MODELPATH \
     --task_name "math500" --dataset_start_idx 0 --dataset_end_idx 20\
     --pred_dir $PRED_DIR --eval_dir $EVAL_DIR
