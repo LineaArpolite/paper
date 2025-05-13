@@ -1,4 +1,4 @@
-Personal access tokens (classic):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 \
+Personal access tokens (classic):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
 
 ```
 git clone https://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@github.com/LineaArpolite/paper_decoding.git
