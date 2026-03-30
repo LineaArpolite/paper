@@ -1,5 +1,5 @@
 {
-  "num_groups": 5,
+  "num_groups": 30,
   "instruction": "pick up and move the object to the target area",
   "bddl_file": "data_collection_outputs/bddl/dual_strategy_milk_obstacle.bddl",
   "groups": [
@@ -24,13 +24,13 @@
       "seed": 7,
       "A": {
         "path": "data_collection_outputs/trajectories/group_02_A.hdf5",
-        "num_steps": 341,
-        "branch_step": 234,
+        "num_steps": 343,
+        "branch_step": 235,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_02_B.hdf5",
-        "num_steps": 345,
+        "num_steps": 344,
         "branch_step": 235,
         "collision": false
       }
@@ -40,46 +40,446 @@
       "seed": 8,
       "A": {
         "path": "data_collection_outputs/trajectories/group_03_A.hdf5",
-        "num_steps": 337,
-        "branch_step": 231,
+        "num_steps": 338,
+        "branch_step": 234,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_03_B.hdf5",
-        "num_steps": 342,
+        "num_steps": 341,
         "branch_step": 233,
         "collision": false
       }
     },
     {
       "group_id": 4,
-      "seed": 9,
+      "seed": 16,
       "A": {
         "path": "data_collection_outputs/trajectories/group_04_A.hdf5",
-        "num_steps": 340,
-        "branch_step": 234,
+        "num_steps": 336,
+        "branch_step": 232,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_04_B.hdf5",
+        "num_steps": 355,
+        "branch_step": 234,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 5,
+      "seed": 23,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_05_A.hdf5",
+        "num_steps": 336,
+        "branch_step": 231,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_05_B.hdf5",
+        "num_steps": 347,
+        "branch_step": 231,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 6,
+      "seed": 41,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_06_A.hdf5",
+        "num_steps": 337,
+        "branch_step": 231,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_06_B.hdf5",
         "num_steps": 340,
         "branch_step": 230,
         "collision": false
       }
     },
     {
-      "group_id": 5,
-      "seed": 16,
+      "group_id": 7,
+      "seed": 44,
       "A": {
-        "path": "data_collection_outputs/trajectories/group_05_A.hdf5",
+        "path": "data_collection_outputs/trajectories/group_07_A.hdf5",
         "num_steps": 335,
+        "branch_step": 230,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_07_B.hdf5",
+        "num_steps": 348,
+        "branch_step": 233,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 8,
+      "seed": 45,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_08_A.hdf5",
+        "num_steps": 335,
+        "branch_step": 229,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_08_B.hdf5",
+        "num_steps": 342,
+        "branch_step": 233,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 9,
+      "seed": 59,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_09_A.hdf5",
+        "num_steps": 335,
+        "branch_step": 230,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_09_B.hdf5",
+        "num_steps": 342,
+        "branch_step": 230,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 10,
+      "seed": 60,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_10_A.hdf5",
+        "num_steps": 338,
+        "branch_step": 233,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_10_B.hdf5",
+        "num_steps": 345,
+        "branch_step": 232,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 11,
+      "seed": 63,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_11_A.hdf5",
+        "num_steps": 349,
+        "branch_step": 243,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_11_B.hdf5",
+        "num_steps": 350,
+        "branch_step": 232,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 12,
+      "seed": 74,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_12_A.hdf5",
+        "num_steps": 337,
         "branch_step": 231,
         "collision": false
       },
       "B": {
-        "path": "data_collection_outputs/trajectories/group_05_B.hdf5",
-        "num_steps": 354,
+        "path": "data_collection_outputs/trajectories/group_12_B.hdf5",
+        "num_steps": 346,
+        "branch_step": 236,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 13,
+      "seed": 80,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_13_A.hdf5",
+        "num_steps": 342,
+        "branch_step": 236,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_13_B.hdf5",
+        "num_steps": 348,
+        "branch_step": 233,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 14,
+      "seed": 85,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_14_A.hdf5",
+        "num_steps": 337,
+        "branch_step": 230,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_14_B.hdf5",
+        "num_steps": 344,
+        "branch_step": 235,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 15,
+      "seed": 90,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_15_A.hdf5",
+        "num_steps": 339,
+        "branch_step": 232,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_15_B.hdf5",
+        "num_steps": 343,
         "branch_step": 234,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 16,
+      "seed": 96,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_16_A.hdf5",
+        "num_steps": 339,
+        "branch_step": 234,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_16_B.hdf5",
+        "num_steps": 346,
+        "branch_step": 236,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 17,
+      "seed": 131,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_17_A.hdf5",
+        "num_steps": 339,
+        "branch_step": 233,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_17_B.hdf5",
+        "num_steps": 345,
+        "branch_step": 233,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 18,
+      "seed": 154,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_18_A.hdf5",
+        "num_steps": 338,
+        "branch_step": 232,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_18_B.hdf5",
+        "num_steps": 363,
+        "branch_step": 234,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 19,
+      "seed": 161,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_19_A.hdf5",
+        "num_steps": 336,
+        "branch_step": 232,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_19_B.hdf5",
+        "num_steps": 350,
+        "branch_step": 232,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 20,
+      "seed": 171,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_20_A.hdf5",
+        "num_steps": 338,
+        "branch_step": 233,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_20_B.hdf5",
+        "num_steps": 359,
+        "branch_step": 237,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 21,
+      "seed": 172,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_21_A.hdf5",
+        "num_steps": 340,
+        "branch_step": 234,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_21_B.hdf5",
+        "num_steps": 357,
+        "branch_step": 237,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 22,
+      "seed": 178,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_22_A.hdf5",
+        "num_steps": 340,
+        "branch_step": 233,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_22_B.hdf5",
+        "num_steps": 348,
+        "branch_step": 231,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 23,
+      "seed": 180,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_23_A.hdf5",
+        "num_steps": 336,
+        "branch_step": 229,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_23_B.hdf5",
+        "num_steps": 347,
+        "branch_step": 231,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 24,
+      "seed": 182,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_24_A.hdf5",
+        "num_steps": 337,
+        "branch_step": 231,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_24_B.hdf5",
+        "num_steps": 341,
+        "branch_step": 231,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 25,
+      "seed": 186,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_25_A.hdf5",
+        "num_steps": 341,
+        "branch_step": 236,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_25_B.hdf5",
+        "num_steps": 347,
+        "branch_step": 235,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 26,
+      "seed": 194,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_26_A.hdf5",
+        "num_steps": 338,
+        "branch_step": 234,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_26_B.hdf5",
+        "num_steps": 348,
+        "branch_step": 235,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 27,
+      "seed": 196,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_27_A.hdf5",
+        "num_steps": 342,
+        "branch_step": 235,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_27_B.hdf5",
+        "num_steps": 344,
+        "branch_step": 234,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 28,
+      "seed": 203,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_28_A.hdf5",
+        "num_steps": 341,
+        "branch_step": 234,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_28_B.hdf5",
+        "num_steps": 359,
+        "branch_step": 247,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 29,
+      "seed": 238,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_29_A.hdf5",
+        "num_steps": 336,
+        "branch_step": 231,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_29_B.hdf5",
+        "num_steps": 339,
+        "branch_step": 230,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 30,
+      "seed": 248,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_30_A.hdf5",
+        "num_steps": 338,
+        "branch_step": 231,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_30_B.hdf5",
+        "num_steps": 344,
+        "branch_step": 233,
         "collision": false
       }
     }

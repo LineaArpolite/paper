@@ -1,6 +1,6 @@
 # Dual Strategy Collection Report
 
-- Number of valid A/B pairs: 5
+- Number of valid A/B pairs: 30
 - A success rate: 1.000
 - B success rate: 1.000
 - A collision-free rate: 1.000
@@ -8,11 +8,11 @@
 
 ## Similarity / Divergence Metrics
 
-- Pre-branch action L2 mean: 0.062221
-- Pre-branch ee L2 mean: 0.008502
-- Branch image MSE mean: 183.079
-- Post-branch action abs diff mean: 0.245517
-- Post-branch path separation mean: 0.117961
+- Pre-branch action L2 mean: 0.101422
+- Pre-branch ee L2 mean: 0.014483
+- Branch image MSE mean: 370.404
+- Post-branch action abs diff mean: 0.262313
+- Post-branch path separation mean: 0.122147
 
 ## Acceptance Checklist
 

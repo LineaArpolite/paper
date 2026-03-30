@@ -10,17 +10,17 @@
     "target_container_name": "wooden_tray_1",
     "obstacle_name": "obstacle_1",
     "obstacle_bbox_xy": [
-      -0.0711139515042305,
-      0.06958604604005814,
-      -0.07934800535440445,
-      0.06371084600687027
+      -0.07120434939861298,
+      0.06949564814567566,
+      -0.08042088150978088,
+      0.06263796985149384
     ]
   },
-  "trajectory_length": 341,
+  "trajectory_length": 343,
   "key_steps": {
-    "branch_step": 234,
-    "grasp_step": 193,
-    "place_step": 316
+    "branch_step": 235,
+    "grasp_step": 194,
+    "place_step": 318
   },
   "status": {
     "success": true,
