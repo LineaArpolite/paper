@@ -1,0 +1,86 @@
+{
+  "summary": {
+    "num_pairs": 5,
+    "success_rate_A": 1.0,
+    "success_rate_B": 1.0,
+    "collision_free_rate_A": 1.0,
+    "collision_free_rate_B": 1.0,
+    "pre_action_l2_mean": 0.025161375850439073,
+    "pre_ee_l2_mean": 0.006297048088163138,
+    "branch_image_mse_mean": 203.0816993713379,
+    "post_action_abs_diff_mean": 0.2228815197944641,
+    "post_path_separation_mean": 0.08810644000768661
+  },
+  "details": [
+    {
+      "A": "data_collection_outputs/trajectories/group_01_A.hdf5",
+      "B": "data_collection_outputs/trajectories/group_01_B.hdf5",
+      "pre_action_l2": 0.017048735171556473,
+      "pre_ee_l2": 0.0039343698881566525,
+      "branch_image_mse": 261.8560485839844,
+      "post_action_abs_diff": 0.22699537873268127,
+      "post_path_separation": 0.08259434998035431,
+      "branch_step": 298,
+      "A_success": 1,
+      "B_success": 1,
+      "A_collision": 0,
+      "B_collision": 0
+    },
+    {
+      "A": "data_collection_outputs/trajectories/group_02_A.hdf5",
+      "B": "data_collection_outputs/trajectories/group_02_B.hdf5",
+      "pre_action_l2": 0.04094488546252251,
+      "pre_ee_l2": 0.0058664679527282715,
+      "branch_image_mse": 242.2385711669922,
+      "post_action_abs_diff": 0.21551834046840668,
+      "post_path_separation": 0.0893528088927269,
+      "branch_step": 297,
+      "A_success": 1,
+      "B_success": 1,
+      "A_collision": 0,
+      "B_collision": 0
+    },
+    {
+      "A": "data_collection_outputs/trajectories/group_03_A.hdf5",
+      "B": "data_collection_outputs/trajectories/group_03_B.hdf5",
+      "pre_action_l2": 0.01768193580210209,
+      "pre_ee_l2": 0.00497084017843008,
+      "branch_image_mse": 60.47330856323242,
+      "post_action_abs_diff": 0.2261364609003067,
+      "post_path_separation": 0.09135224670171738,
+      "branch_step": 299,
+      "A_success": 1,
+      "B_success": 1,
+      "A_collision": 0,
+      "B_collision": 0
+    },
+    {
+      "A": "data_collection_outputs/trajectories/group_04_A.hdf5",
+      "B": "data_collection_outputs/trajectories/group_04_B.hdf5",
+      "pre_action_l2": 0.0342639721930027,
+      "pre_ee_l2": 0.011604142375290394,
+      "branch_image_mse": 94.4564437866211,
+      "post_action_abs_diff": 0.21896091103553772,
+      "post_path_separation": 0.07508654147386551,
+      "branch_step": 299,
+      "A_success": 1,
+      "B_success": 1,
+      "A_collision": 0,
+      "B_collision": 0
+    },
+    {
+      "A": "data_collection_outputs/trajectories/group_05_A.hdf5",
+      "B": "data_collection_outputs/trajectories/group_05_B.hdf5",
+      "pre_action_l2": 0.01586735062301159,
+      "pre_ee_l2": 0.005109420046210289,
+      "branch_image_mse": 356.3841247558594,
+      "post_action_abs_diff": 0.22679650783538818,
+      "post_path_separation": 0.10214625298976898,
+      "branch_step": 299,
+      "A_success": 1,
+      "B_success": 1,
+      "A_collision": 0,
+      "B_collision": 0
+    }
+  ]
+}

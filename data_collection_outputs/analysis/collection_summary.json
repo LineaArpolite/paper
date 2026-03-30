@@ -1,0 +1,87 @@
+{
+  "num_groups": 5,
+  "instruction": "pick up and move the object to the target area",
+  "bddl_file": "data_collection_outputs/bddl/dual_strategy_milk_obstacle.bddl",
+  "groups": [
+    {
+      "group_id": 1,
+      "seed": 6,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_01_A.hdf5",
+        "num_steps": 621,
+        "branch_step": 299,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_01_B.hdf5",
+        "num_steps": 474,
+        "branch_step": 298,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 2,
+      "seed": 8,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_02_A.hdf5",
+        "num_steps": 621,
+        "branch_step": 299,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_02_B.hdf5",
+        "num_steps": 470,
+        "branch_step": 297,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 3,
+      "seed": 9,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_03_A.hdf5",
+        "num_steps": 620,
+        "branch_step": 299,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_03_B.hdf5",
+        "num_steps": 476,
+        "branch_step": 299,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 4,
+      "seed": 19,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_04_A.hdf5",
+        "num_steps": 620,
+        "branch_step": 300,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_04_B.hdf5",
+        "num_steps": 472,
+        "branch_step": 299,
+        "collision": false
+      }
+    },
+    {
+      "group_id": 5,
+      "seed": 22,
+      "A": {
+        "path": "data_collection_outputs/trajectories/group_05_A.hdf5",
+        "num_steps": 621,
+        "branch_step": 299,
+        "collision": false
+      },
+      "B": {
+        "path": "data_collection_outputs/trajectories/group_05_B.hdf5",
+        "num_steps": 477,
+        "branch_step": 299,
+        "collision": false
+      }
+    }
+  ]
+}

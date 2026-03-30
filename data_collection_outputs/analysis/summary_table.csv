@@ -1,0 +1,6 @@
+A,B,pre_action_l2,pre_ee_l2,branch_image_mse,post_action_abs_diff,post_path_separation,branch_step,A_success,B_success,A_collision,B_collision
+data_collection_outputs/trajectories/group_01_A.hdf5,data_collection_outputs/trajectories/group_01_B.hdf5,0.017048735171556473,0.0039343698881566525,261.8560485839844,0.22699537873268127,0.08259434998035431,298,1,1,0,0
+data_collection_outputs/trajectories/group_02_A.hdf5,data_collection_outputs/trajectories/group_02_B.hdf5,0.04094488546252251,0.0058664679527282715,242.2385711669922,0.21551834046840668,0.0893528088927269,297,1,1,0,0
+data_collection_outputs/trajectories/group_03_A.hdf5,data_collection_outputs/trajectories/group_03_B.hdf5,0.01768193580210209,0.00497084017843008,60.47330856323242,0.2261364609003067,0.09135224670171738,299,1,1,0,0
+data_collection_outputs/trajectories/group_04_A.hdf5,data_collection_outputs/trajectories/group_04_B.hdf5,0.0342639721930027,0.011604142375290394,94.4564437866211,0.21896091103553772,0.07508654147386551,299,1,1,0,0
+data_collection_outputs/trajectories/group_05_A.hdf5,data_collection_outputs/trajectories/group_05_B.hdf5,0.01586735062301159,0.005109420046210289,356.3841247558594,0.22679650783538818,0.10214625298976898,299,1,1,0,0
