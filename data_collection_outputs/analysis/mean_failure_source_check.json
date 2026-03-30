@@ -1,0 +1,45 @@
+{
+  "all_post_branch_collision": true,
+  "groups": [
+    {
+      "group_id": 1,
+      "mean_success": 1,
+      "mean_collision": 1,
+      "branch_step": 299,
+      "first_mean_collision_step": 331,
+      "collision_after_branch": true
+    },
+    {
+      "group_id": 2,
+      "mean_success": 0,
+      "mean_collision": 1,
+      "branch_step": 299,
+      "first_mean_collision_step": 305,
+      "collision_after_branch": true
+    },
+    {
+      "group_id": 3,
+      "mean_success": 0,
+      "mean_collision": 1,
+      "branch_step": 297,
+      "first_mean_collision_step": 304,
+      "collision_after_branch": true
+    },
+    {
+      "group_id": 4,
+      "mean_success": 0,
+      "mean_collision": 1,
+      "branch_step": 299,
+      "first_mean_collision_step": 306,
+      "collision_after_branch": true
+    },
+    {
+      "group_id": 5,
+      "mean_success": 0,
+      "mean_collision": 1,
+      "branch_step": 301,
+      "first_mean_collision_step": 316,
+      "collision_after_branch": true
+    }
+  ]
+}
