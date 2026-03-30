@@ -1,0 +1,24 @@
+{
+  "group_id": 25,
+  "A_success": 1,
+  "B_success": 1,
+  "mean_success": 0,
+  "mean_collision": 1,
+  "mean_collision_steps": [
+    238,
+    240,
+    241,
+    242,
+    243,
+    245,
+    246,
+    248,
+    250,
+    251,
+    254,
+    256,
+    257
+  ],
+  "num_steps_mean": 341,
+  "triplet_mp4": "data_collection_outputs/visualizations/collision_debug/group_25_mean_action_triplet.mp4"
+}
