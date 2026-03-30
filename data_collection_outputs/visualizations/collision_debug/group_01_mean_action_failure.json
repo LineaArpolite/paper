@@ -3,8 +3,10 @@
   "A_success": 1,
   "B_success": 1,
   "mean_success": 1,
-  "mean_collision": 0,
-  "mean_collision_steps": [],
-  "num_steps_mean": 487,
+  "mean_collision": 1,
+  "mean_collision_steps": [
+    331
+  ],
+  "num_steps_mean": 467,
   "triplet_mp4": "data_collection_outputs/visualizations/collision_debug/group_01_mean_action_triplet.mp4"
 }
