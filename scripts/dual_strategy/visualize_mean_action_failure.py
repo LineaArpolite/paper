@@ -94,14 +94,81 @@ def _save_mp4(frames, out_path: Path, fps: int) -> None:
     writer.release()
 
 
+def _effective_fps(
+    kept_frames: int,
+    total_steps: int,
+    user_fps: int,
+    source_step_fps: float,
+    preserve_native_duration: bool,
+) -> float:
+    if not preserve_native_duration:
+        return float(max(1, user_fps))
+    if kept_frames <= 0 or total_steps <= 0:
+        return float(max(1, user_fps))
+    return float(max(1.0, kept_frames * float(source_step_fps) / float(total_steps)))
+
+
+def _frame_diff(a: np.ndarray, b: np.ndarray) -> float:
+    da = np.asarray(a, dtype=np.int16)
+    db = np.asarray(b, dtype=np.int16)
+    return float(np.mean(np.abs(da - db)))
+
+
+def _frame_at(frames, idx: int):
+    if len(frames) == 0:
+        raise ValueError("Empty frame sequence")
+    i = int(np.clip(idx, 0, len(frames) - 1))
+    return frames[i]
+
+
+def _adaptive_indices(frames, max_frames: int, min_frame_diff: float, max_static_skip: int, must_keep=None):
+    n = len(frames)
+    if n <= 2:
+        return list(range(n))
+    if must_keep is None:
+        must_keep = []
+
+    keep = [0]
+    static_run = 0
+    for i in range(1, n - 1):
+        is_static = _frame_diff(frames[i], frames[i - 1]) < min_frame_diff
+        if not is_static:
+            keep.append(i)
+            static_run = 0
+        else:
+            static_run += 1
+            if static_run >= max_static_skip:
+                keep.append(i)
+                static_run = 0
+    keep.append(n - 1)
+    keep.extend([int(x) for x in must_keep if 0 <= int(x) < n])
+    keep = sorted(set(keep))
+
+    if len(keep) > max_frames:
+        picks = np.linspace(0, len(keep) - 1, max_frames, dtype=int)
+        keep = [keep[i] for i in picks]
+        keep = sorted(set(keep).union({0, n - 1}))
+    return keep
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset-root", default="data_collection_outputs")
     parser.add_argument("--pairs", default="1,2,3,4,5")
-    parser.add_argument("--fps", type=int, default=12)
+    parser.add_argument("--fps", type=int, default=20)
     parser.add_argument(
         "--output-dir",
         default="data_collection_outputs/visualizations/collision_debug",
+    )
+    parser.add_argument("--max-video-frames", type=int, default=420)
+    parser.add_argument("--min-frame-diff", type=float, default=0.55)
+    parser.add_argument("--max-static-skip", type=int, default=4)
+    parser.add_argument("--source-step-fps", type=float, default=20.0)
+    parser.add_argument(
+        "--preserve-native-duration",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Adjust output fps so video duration matches native rollout duration.",
     )
     args = parser.parse_args()
 
@@ -147,23 +214,36 @@ def main() -> None:
         env.close()
 
         # Triplet MP4: A | B | mean
-        m = min(len(a["imgs"]), len(b["imgs"]), len(mean_frames))
-        stride = max(1, m // 450)
+        m = max(len(a["imgs"]), len(b["imgs"]), len(mean_frames))
+        keep_idx = _adaptive_indices(
+            mean_frames,
+            max_frames=int(args.max_video_frames),
+            min_frame_diff=float(args.min_frame_diff),
+            max_static_skip=int(args.max_static_skip),
+            must_keep=[0, m - 1, len(a["imgs"]) - 1, len(b["imgs"]) - 1, len(mean_frames) - 1],
+        )
         triplet_frames = []
-        for i in range(0, m, stride):
+        for i in keep_idx:
             triplet_frames.append(
                 np.concatenate(
                     [
-                        np.flipud(a["imgs"][i]),
-                        np.flipud(b["imgs"][i]),
-                        np.flipud(mean_frames[i]),
+                        np.flipud(_frame_at(a["imgs"], i)),
+                        np.flipud(_frame_at(b["imgs"], i)),
+                        np.flipud(_frame_at(mean_frames, i)),
                     ],
                     axis=1,
                 )
             )
 
         triplet_path = out_dir / f"group_{gid:02d}_mean_action_triplet.mp4"
-        _save_mp4(triplet_frames, triplet_path, args.fps)
+        out_fps = _effective_fps(
+            kept_frames=len(keep_idx),
+            total_steps=m,
+            user_fps=int(args.fps),
+            source_step_fps=float(args.source_step_fps),
+            preserve_native_duration=bool(args.preserve_native_duration),
+        )
+        _save_mp4(triplet_frames, triplet_path, out_fps)
 
         payload = {
             "group_id": gid,

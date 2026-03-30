@@ -78,24 +78,172 @@ def _save_mp4(frames: List[np.ndarray], out_path: Path, fps: int) -> None:
     writer.release()
 
 
+def _effective_fps(
+    kept_frames: int,
+    total_steps: int,
+    user_fps: int,
+    source_step_fps: float,
+    preserve_native_duration: bool,
+) -> float:
+    if not preserve_native_duration:
+        return float(max(1, user_fps))
+    if kept_frames <= 0 or total_steps <= 0:
+        return float(max(1, user_fps))
+    return float(max(1.0, kept_frames * float(source_step_fps) / float(total_steps)))
+
+
+def _frame_diff(a: np.ndarray, b: np.ndarray) -> float:
+    da = np.asarray(a, dtype=np.int16)
+    db = np.asarray(b, dtype=np.int16)
+    return float(np.mean(np.abs(da - db)))
+
+
+def _frame_at(imgs: np.ndarray, idx: int) -> np.ndarray:
+    if len(imgs) == 0:
+        raise ValueError("Empty frame sequence")
+    i = int(np.clip(idx, 0, len(imgs) - 1))
+    return imgs[i]
+
+
+def _downsample_indices(indices: List[int], max_frames: int) -> List[int]:
+    if len(indices) <= max_frames:
+        return indices
+    picks = np.linspace(0, len(indices) - 1, max_frames, dtype=int)
+    return [indices[i] for i in picks]
+
+
+def _adaptive_single_indices(
+    imgs: np.ndarray,
+    max_frames: int,
+    min_frame_diff: float,
+    must_keep: List[int],
+    max_static_skip: int,
+) -> List[int]:
+    n = len(imgs)
+    if n <= 2:
+        return list(range(n))
+
+    keep = [0]
+    static_run = 0
+    for i in range(1, n - 1):
+        is_static = _frame_diff(imgs[i], imgs[i - 1]) < min_frame_diff
+        if not is_static:
+            keep.append(i)
+            static_run = 0
+        else:
+            static_run += 1
+            if static_run >= max_static_skip:
+                keep.append(i)
+                static_run = 0
+    keep.append(n - 1)
+
+    for x in must_keep:
+        if 0 <= x < n:
+            keep.append(int(x))
+    keep = sorted(set(keep))
+
+    key_set = set(int(x) for x in must_keep if 0 <= x < n)
+    key_set.update({0, n - 1})
+    regular = [i for i in keep if i not in key_set]
+    max_regular = max(0, max_frames - len(key_set))
+    regular = _downsample_indices(regular, max_regular)
+    merged = sorted(set(regular).union(key_set))
+    return merged
+
+
+def _adaptive_pair_indices(
+    a_imgs: np.ndarray,
+    b_imgs: np.ndarray,
+    max_frames: int,
+    min_frame_diff: float,
+    must_keep: List[int],
+    max_static_skip: int,
+) -> List[int]:
+    n = max(len(a_imgs), len(b_imgs))
+    if n <= 2:
+        return list(range(n))
+
+    keep = [0]
+    static_run = 0
+    for i in range(1, n - 1):
+        diff = 0.5 * (
+            _frame_diff(_frame_at(a_imgs, i), _frame_at(a_imgs, i - 1))
+            + _frame_diff(_frame_at(b_imgs, i), _frame_at(b_imgs, i - 1))
+        )
+        if diff >= min_frame_diff:
+            keep.append(i)
+            static_run = 0
+        else:
+            static_run += 1
+            if static_run >= max_static_skip:
+                keep.append(i)
+                static_run = 0
+    keep.append(n - 1)
+
+    for x in must_keep:
+        if 0 <= x < n:
+            keep.append(int(x))
+    keep = sorted(set(keep))
+
+    key_set = set(int(x) for x in must_keep if 0 <= x < n)
+    key_set.update({0, n - 1})
+    regular = [i for i in keep if i not in key_set]
+    max_regular = max(0, max_frames - len(key_set))
+    regular = _downsample_indices(regular, max_regular)
+    merged = sorted(set(regular).union(key_set))
+    return merged
+
+
 def save_side_by_side_mp4(
     a_imgs: np.ndarray,
     b_imgs: np.ndarray,
     out_path: Path,
     fps: int,
     flip_vertical: bool,
+    max_frames: int,
+    min_frame_diff: float,
+    must_keep: List[int],
+    max_static_skip: int,
+    source_step_fps: float,
+    preserve_native_duration: bool,
 ) -> None:
-    n = min(len(a_imgs), len(b_imgs))
-    stride = max(1, n // 450)
+    n = max(len(a_imgs), len(b_imgs))
+    idx = _adaptive_pair_indices(
+        a_imgs,
+        b_imgs,
+        max_frames=max_frames,
+        min_frame_diff=min_frame_diff,
+        must_keep=must_keep,
+        max_static_skip=max_static_skip,
+    )
     frames = []
-    for i in range(0, n, stride):
-        a = _maybe_flip(a_imgs[i], flip_vertical)
-        b = _maybe_flip(b_imgs[i], flip_vertical)
+    for i in idx:
+        a = _maybe_flip(_frame_at(a_imgs, i), flip_vertical)
+        b = _maybe_flip(_frame_at(b_imgs, i), flip_vertical)
         frames.append(np.concatenate([a, b], axis=1))
-    _save_mp4(frames, out_path, fps)
+    out_fps = _effective_fps(
+        kept_frames=len(idx),
+        total_steps=n,
+        user_fps=fps,
+        source_step_fps=source_step_fps,
+        preserve_native_duration=preserve_native_duration,
+    )
+    _save_mp4(frames, out_path, fps=out_fps)
 
 
-def visualize_pair(dataset_root: Path, pair_idx: int, output_dir: Path, make_mp4: bool, flip_vertical: bool) -> bool:
+def visualize_pair(
+    dataset_root: Path,
+    pair_idx: int,
+    output_dir: Path,
+    make_mp4: bool,
+    flip_vertical: bool,
+    max_video_frames: int,
+    min_frame_diff: float,
+    max_static_skip: int,
+    fps: int,
+    source_step_fps: float,
+    preserve_native_duration: bool,
+) -> bool:
     a_path = dataset_root / "trajectories" / f"group_{pair_idx:02d}_A.hdf5"
     b_path = dataset_root / "trajectories" / f"group_{pair_idx:02d}_B.hdf5"
     if not a_path.exists() or not b_path.exists():
@@ -113,17 +261,44 @@ def visualize_pair(dataset_root: Path, pair_idx: int, output_dir: Path, make_mp4
 
     if make_mp4:
         for label, data in [("A", a), ("B", b)]:
-            n = len(data["imgs"])
-            stride = max(1, n // 450)
-            frames = [_maybe_flip(data["imgs"][i], flip_vertical) for i in range(0, n, stride)]
-            _save_mp4(frames, rollouts_dir / f"group_{pair_idx:02d}_{label}.mp4", fps=12)
+            key = [int(data["grasp_step"]), int(data["branch_step"]), int(data["place_step"])]
+            idx = _adaptive_single_indices(
+                data["imgs"],
+                max_frames=max_video_frames,
+                min_frame_diff=min_frame_diff,
+                must_keep=key,
+                max_static_skip=max_static_skip,
+            )
+            frames = [_maybe_flip(data["imgs"][i], flip_vertical) for i in idx]
+            out_fps = _effective_fps(
+                kept_frames=len(idx),
+                total_steps=len(data["imgs"]),
+                user_fps=fps,
+                source_step_fps=source_step_fps,
+                preserve_native_duration=preserve_native_duration,
+            )
+            _save_mp4(frames, rollouts_dir / f"group_{pair_idx:02d}_{label}.mp4", fps=out_fps)
 
+        pair_key = [
+            int(a["branch_step"]),
+            int(b["branch_step"]),
+            int(a["grasp_step"]),
+            int(b["grasp_step"]),
+            int(a["place_step"]),
+            int(b["place_step"]),
+        ]
         save_side_by_side_mp4(
             a["imgs"],
             b["imgs"],
             paired_dir / f"group_{pair_idx:02d}_A_vs_B.mp4",
-            fps=12,
+            fps=fps,
             flip_vertical=flip_vertical,
+            max_frames=max_video_frames,
+            min_frame_diff=min_frame_diff,
+            must_keep=pair_key,
+            max_static_skip=max_static_skip,
+            source_step_fps=source_step_fps,
+            preserve_native_duration=preserve_native_duration,
         )
 
     # Topdown path overlay
@@ -280,6 +455,32 @@ def main() -> None:
         default=True,
         help="Flip image vertically for human-friendly viewing. Disable with --no-flip-vertical.",
     )
+    parser.add_argument(
+        "--max-video-frames",
+        type=int,
+        default=420,
+        help="Upper bound of frames kept in each generated mp4.",
+    )
+    parser.add_argument(
+        "--min-frame-diff",
+        type=float,
+        default=0.55,
+        help="Mean absolute RGB diff threshold used to drop near-static frames.",
+    )
+    parser.add_argument(
+        "--max-static-skip",
+        type=int,
+        default=4,
+        help="In near-static segments, keep one frame every N steps to avoid jumpy playback.",
+    )
+    parser.add_argument("--fps", type=int, default=20)
+    parser.add_argument("--source-step-fps", type=float, default=20.0)
+    parser.add_argument(
+        "--preserve-native-duration",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Adjust output fps so video duration matches native rollout duration.",
+    )
     args = parser.parse_args()
 
     root = Path(args.dataset_root)
@@ -293,7 +494,19 @@ def main() -> None:
 
     created = 0
     for pid in pair_ids:
-        ok = visualize_pair(root, pid, out, make_mp4=args.make_mp4, flip_vertical=args.flip_vertical)
+        ok = visualize_pair(
+            root,
+            pid,
+            out,
+            make_mp4=args.make_mp4,
+            flip_vertical=args.flip_vertical,
+            max_video_frames=int(args.max_video_frames),
+            min_frame_diff=float(args.min_frame_diff),
+            max_static_skip=int(args.max_static_skip),
+            fps=int(args.fps),
+            source_step_fps=float(args.source_step_fps),
+            preserve_native_duration=bool(args.preserve_native_duration),
+        )
         if ok:
             created += 1
 

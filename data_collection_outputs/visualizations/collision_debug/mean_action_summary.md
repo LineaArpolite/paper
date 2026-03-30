@@ -1,13 +1,13 @@
-# Mean Action Failure Summary
+# Mean Action Summary
 
-- Total groups: 5
-- Invalid mean groups (fail or collision): 5/5
-- Mean action collision groups: 5/5
+- Groups: 5
+- Mean-action success rate: 0.000
+- Mean-action collision rate: 1.000
 
-| Group | Mean Success | Mean Collision | Steps |
-|---|---:|---:|---:|
-| 01 | 1 | 1 | 405 |
-| 02 | 1 | 1 | 403 |
-| 03 | 0 | 1 | 404 |
-| 04 | 0 | 1 | 404 |
-| 05 | 0 | 1 | 403 |
+| group_id | mean_success | mean_collision | first_collision_step | num_collision_steps |
+|---:|---:|---:|---:|---:|
+| 1 | 0 | 1 | 252 | 29 |
+| 2 | 0 | 1 | 239 | 42 |
+| 3 | 0 | 1 | 240 | 40 |
+| 4 | 0 | 1 | 252 | 83 |
+| 5 | 0 | 1 | 239 | 66 |

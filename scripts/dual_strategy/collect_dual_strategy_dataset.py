@@ -170,7 +170,7 @@ def _infer_target_container_name(bddl_file: Path) -> str:
     raise RuntimeError(f"Could not infer target container name from BDDL: {bddl_file}")
 
 
-def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> RolloutResult:
+def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argparse.Namespace) -> RolloutResult:
     assert strategy_label in ["A", "B"]
 
     obstacle_ids, robot_ids, object_ids = _collision_id_sets(env)
@@ -192,15 +192,29 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
             collision_flag = True
             collision_steps.append(len(recorder.actions) - 1)
 
-    def goto(target_pos: np.ndarray, gripper_cmd: float, tol: float = 0.01, max_steps: int = 180) -> None:
+    def goto(target_pos: np.ndarray, gripper_cmd: float, tol: float = -1.0, max_steps: int = -1) -> None:
+        if tol <= 0.0:
+            tol = float(args.goto_tol)
+        if max_steps <= 0:
+            max_steps = int(args.goto_max_steps)
+        prev_dist = 1e9
+        near_stable_steps = 0
         for _ in range(max_steps):
             delta = target_pos - obs["robot0_eef_pos"]
+            dist = float(np.linalg.norm(delta))
+            if dist < tol:
+                break
             action = np.zeros(env.action_dim, dtype=np.float32)
-            action[:3] = np.clip(8.0 * delta, -1.0, 1.0)
+            action[:3] = np.clip(float(args.goto_gain) * delta, -1.0, 1.0)
             action[-1] = gripper_cmd
             step_once(action)
-            if np.linalg.norm(delta) < tol:
-                break
+            if abs(prev_dist - dist) < float(args.goto_stable_delta) and dist < (tol * float(args.goto_stable_factor)):
+                near_stable_steps += 1
+                if near_stable_steps >= int(args.goto_stable_steps):
+                    break
+            else:
+                near_stable_steps = 0
+            prev_dist = dist
 
     def hold(gripper_cmd: float, steps: int) -> None:
         for _ in range(steps):
@@ -208,33 +222,34 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
             action[-1] = gripper_cmd
             step_once(action)
 
-    carry_z = 0.24
-    side_x = 0.12
-    side_y_pre = -0.02 if strategy_label == "A" else -0.10
-    side_y_post = 0.16
+    carry_z = float(args.carry_z)
+    side_x = float(args.side_x)
+    side_y_pre = float(args.side_y_pre_a) if strategy_label == "A" else float(args.side_y_pre_b)
+    side_y_post = float(args.side_y_post)
 
     object_pos = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
     target_pos = obs[f"{TARGET_CONTAINER_NAME}_pos"].copy()
     obstacle_pos = _obstacle_position(env)
 
     # Shared pre-branch prefix: reach, grasp, lift, move to fork.
-    goto(object_pos + np.array([0.0, 0.0, 0.14]), -1.0)
-    goto(object_pos + np.array([0.0, 0.0, 0.03]), -1.0)
+    goto(object_pos + np.array([0.0, 0.0, float(args.pregrasp_hover_z)]), -1.0)
+    goto(object_pos + np.array([0.0, 0.0, float(args.pregrasp_touch_z)]), -1.0)
 
     grasp_step = -1
-    for i in range(28):
+    for i in range(int(args.grasp_close_steps)):
         action = np.zeros(env.action_dim, dtype=np.float32)
         action[-1] = 1.0
         step_once(action)
         if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
             if grasp_step < 0:
                 grasp_step = len(recorder.actions) - 1
-            if i >= 3:
-                hold(1.0, 4)
+            if i >= int(args.grasp_min_settle_steps):
+                if int(args.grasp_hold_steps) > 0:
+                    hold(1.0, int(args.grasp_hold_steps))
                 break
 
     goto(np.array([object_pos[0], object_pos[1], carry_z]), 1.0)
-    fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] - 0.14, carry_z])
+    fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] + float(args.fork_y_offset), carry_z])
     goto(fork, 1.0)
     branch_step = len(recorder.actions) - 1
 
@@ -251,14 +266,15 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
     goto(np.array([target_pos[0], target_pos[1], target_pos[2] + 0.10]), 1.0)
     place_step = len(recorder.actions) - 1
 
-    for i in range(16):
+    for i in range(int(args.release_steps)):
         action = np.zeros(env.action_dim, dtype=np.float32)
         action[-1] = -1.0
-        if i >= 8:
-            action[2] = 0.15
+        if i >= int(args.release_lift_start):
+            action[2] = float(args.release_lift_z)
         step_once(action)
     goto(np.array([target_pos[0], target_pos[1], carry_z]), -1.0)
-    hold(-1.0, 2)
+    if int(args.final_open_hold_steps) > 0:
+        hold(-1.0, int(args.final_open_hold_steps))
 
     raw_success = bool(env._check_success())
     success = raw_success and (not collision_flag)
@@ -424,8 +440,29 @@ def main() -> None:
     parser.add_argument(
         "--seed-candidates",
         type=str,
-        default="1,2,4,6,7,8,9,10,11,12,13,14,15",
+        default="6,7,8,9,16,21,23,25,33",
     )
+    parser.add_argument("--carry-z", type=float, default=0.218)
+    parser.add_argument("--fork-y-offset", type=float, default=-0.145)
+    parser.add_argument("--side-x", type=float, default=0.125)
+    parser.add_argument("--side-y-pre-a", type=float, default=-0.05)
+    parser.add_argument("--side-y-pre-b", type=float, default=-0.10)
+    parser.add_argument("--side-y-post", type=float, default=0.16)
+    parser.add_argument("--goto-gain", type=float, default=9.0)
+    parser.add_argument("--goto-tol", type=float, default=0.01)
+    parser.add_argument("--goto-max-steps", type=int, default=160)
+    parser.add_argument("--goto-stable-delta", type=float, default=3e-4)
+    parser.add_argument("--goto-stable-factor", type=float, default=1.7)
+    parser.add_argument("--goto-stable-steps", type=int, default=4)
+    parser.add_argument("--pregrasp-hover-z", type=float, default=0.14)
+    parser.add_argument("--pregrasp-touch-z", type=float, default=0.03)
+    parser.add_argument("--grasp-close-steps", type=int, default=20)
+    parser.add_argument("--grasp-min-settle-steps", type=int, default=3)
+    parser.add_argument("--grasp-hold-steps", type=int, default=1)
+    parser.add_argument("--release-steps", type=int, default=8)
+    parser.add_argument("--release-lift-start", type=int, default=4)
+    parser.add_argument("--release-lift-z", type=float, default=0.16)
+    parser.add_argument("--final-open-hold-steps", type=int, default=0)
     args = parser.parse_args()
 
     if not args.bddl_file.exists():
@@ -457,8 +494,8 @@ def main() -> None:
         env.reset()
         snapshot = env.sim.get_state().flatten().copy()
 
-        result_a = _rollout_strategy(env, snapshot, "A")
-        result_b = _rollout_strategy(env, snapshot, "B")
+        result_a = _rollout_strategy(env, snapshot, "A", args)
+        result_b = _rollout_strategy(env, snapshot, "B", args)
         env.close()
 
         if not (result_a.success and result_b.success):

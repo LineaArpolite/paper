@@ -1,6 +1,6 @@
 A,B,pre_action_l2,pre_ee_l2,branch_image_mse,post_action_abs_diff,post_path_separation,branch_step,A_success,B_success,A_collision,B_collision
-data_collection_outputs/trajectories/group_01_A.hdf5,data_collection_outputs/trajectories/group_01_B.hdf5,0.02722955495119095,0.006049873307347298,136.41864013671875,0.19537316262722015,0.10338252782821655,269,1,1,0,0
-data_collection_outputs/trajectories/group_02_A.hdf5,data_collection_outputs/trajectories/group_02_B.hdf5,0.04305930435657501,0.009917533956468105,701.9042358398438,0.21182487905025482,0.11106076836585999,267,1,1,0,0
-data_collection_outputs/trajectories/group_03_A.hdf5,data_collection_outputs/trajectories/group_03_B.hdf5,0.017098309472203255,0.003400566754862666,176.1304473876953,0.19879178702831268,0.09683433920145035,269,1,1,0,0
-data_collection_outputs/trajectories/group_04_A.hdf5,data_collection_outputs/trajectories/group_04_B.hdf5,0.04591551423072815,0.00736311636865139,565.8837280273438,0.20221900939941406,0.10410582274198532,269,1,1,0,0
-data_collection_outputs/trajectories/group_05_A.hdf5,data_collection_outputs/trajectories/group_05_B.hdf5,0.01972060836851597,0.00560768460854888,183.36737060546875,0.20736904442310333,0.10892791301012039,269,1,1,0,0
+data_collection_outputs/trajectories/group_01_A.hdf5,data_collection_outputs/trajectories/group_01_B.hdf5,0.05788525566458702,0.011270284652709961,307.3747863769531,0.26997190713882446,0.11700335144996643,229,1,1,0,0
+data_collection_outputs/trajectories/group_02_A.hdf5,data_collection_outputs/trajectories/group_02_B.hdf5,0.03529439494013786,0.006234866101294756,119.4179916381836,0.2361968606710434,0.12122589349746704,234,1,1,0,0
+data_collection_outputs/trajectories/group_03_A.hdf5,data_collection_outputs/trajectories/group_03_B.hdf5,0.041089870035648346,0.009394243359565735,225.30674743652344,0.24271070957183838,0.11130381375551224,231,1,1,0,0
+data_collection_outputs/trajectories/group_04_A.hdf5,data_collection_outputs/trajectories/group_04_B.hdf5,0.10221955925226212,0.011596391908824444,99.13053131103516,0.1823747158050537,0.10884902626276016,230,1,1,0,0
+data_collection_outputs/trajectories/group_05_A.hdf5,data_collection_outputs/trajectories/group_05_B.hdf5,0.07461561262607574,0.004013544414192438,164.16607666015625,0.2963293492794037,0.13142135739326477,231,1,1,0,0

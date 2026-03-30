@@ -8,11 +8,11 @@
 
 ## Similarity / Divergence Metrics
 
-- Pre-branch action L2 mean: 0.030605
-- Pre-branch ee L2 mean: 0.006468
-- Branch image MSE mean: 352.741
-- Post-branch action abs diff mean: 0.203116
-- Post-branch path separation mean: 0.104862
+- Pre-branch action L2 mean: 0.062221
+- Pre-branch ee L2 mean: 0.008502
+- Branch image MSE mean: 183.079
+- Post-branch action abs diff mean: 0.245517
+- Post-branch path separation mean: 0.117961
 
 ## Acceptance Checklist
 
