@@ -5,81 +5,81 @@
   "groups": [
     {
       "group_id": 1,
-      "seed": 1,
+      "seed": 20,
       "A": {
         "path": "data_collection_outputs/trajectories/group_01_A.hdf5",
-        "num_steps": 467,
-        "branch_step": 299,
+        "num_steps": 405,
+        "branch_step": 270,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_01_B.hdf5",
-        "num_steps": 476,
-        "branch_step": 298,
+        "num_steps": 412,
+        "branch_step": 269,
         "collision": false
       }
     },
     {
       "group_id": 2,
-      "seed": 20,
+      "seed": 40,
       "A": {
         "path": "data_collection_outputs/trajectories/group_02_A.hdf5",
-        "num_steps": 466,
-        "branch_step": 299,
+        "num_steps": 403,
+        "branch_step": 267,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_02_B.hdf5",
-        "num_steps": 475,
-        "branch_step": 299,
+        "num_steps": 410,
+        "branch_step": 270,
         "collision": false
       }
     },
     {
       "group_id": 3,
-      "seed": 40,
+      "seed": 60,
       "A": {
         "path": "data_collection_outputs/trajectories/group_03_A.hdf5",
-        "num_steps": 465,
-        "branch_step": 297,
+        "num_steps": 404,
+        "branch_step": 270,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_03_B.hdf5",
-        "num_steps": 472,
-        "branch_step": 300,
+        "num_steps": 412,
+        "branch_step": 269,
         "collision": false
       }
     },
     {
       "group_id": 4,
-      "seed": 60,
+      "seed": 80,
       "A": {
         "path": "data_collection_outputs/trajectories/group_04_A.hdf5",
-        "num_steps": 465,
-        "branch_step": 299,
+        "num_steps": 404,
+        "branch_step": 270,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_04_B.hdf5",
-        "num_steps": 473,
-        "branch_step": 298,
+        "num_steps": 412,
+        "branch_step": 269,
         "collision": false
       }
     },
     {
       "group_id": 5,
-      "seed": 80,
+      "seed": 4,
       "A": {
         "path": "data_collection_outputs/trajectories/group_05_A.hdf5",
-        "num_steps": 467,
-        "branch_step": 301,
+        "num_steps": 403,
+        "branch_step": 269,
         "collision": false
       },
       "B": {
         "path": "data_collection_outputs/trajectories/group_05_B.hdf5",
-        "num_steps": 474,
-        "branch_step": 299,
+        "num_steps": 412,
+        "branch_step": 269,
         "collision": false
       }
     }

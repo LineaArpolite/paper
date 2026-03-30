@@ -5,8 +5,8 @@
   "mean_success": 1,
   "mean_collision": 1,
   "mean_collision_steps": [
-    331
+    304
   ],
-  "num_steps_mean": 467,
+  "num_steps_mean": 405,
   "triplet_mp4": "data_collection_outputs/visualizations/collision_debug/group_01_mean_action_triplet.mp4"
 }

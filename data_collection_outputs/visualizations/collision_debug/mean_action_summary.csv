@@ -1,6 +1,6 @@
 group_id,mean_success,mean_collision,num_steps_mean,triplet_mp4
-1,1,1,467,data_collection_outputs/visualizations/collision_debug/group_01_mean_action_triplet.mp4
-2,0,1,466,data_collection_outputs/visualizations/collision_debug/group_02_mean_action_triplet.mp4
-3,0,1,465,data_collection_outputs/visualizations/collision_debug/group_03_mean_action_triplet.mp4
-4,0,1,465,data_collection_outputs/visualizations/collision_debug/group_04_mean_action_triplet.mp4
-5,0,1,467,data_collection_outputs/visualizations/collision_debug/group_05_mean_action_triplet.mp4
+1,1,1,405,data_collection_outputs/visualizations/collision_debug/group_01_mean_action_triplet.mp4
+2,1,1,403,data_collection_outputs/visualizations/collision_debug/group_02_mean_action_triplet.mp4
+3,0,1,404,data_collection_outputs/visualizations/collision_debug/group_03_mean_action_triplet.mp4
+4,0,1,404,data_collection_outputs/visualizations/collision_debug/group_04_mean_action_triplet.mp4
+5,0,1,403,data_collection_outputs/visualizations/collision_debug/group_05_mean_action_triplet.mp4

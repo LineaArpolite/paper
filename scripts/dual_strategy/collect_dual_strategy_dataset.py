@@ -222,12 +222,16 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
     goto(object_pos + np.array([0.0, 0.0, 0.03]), -1.0)
 
     grasp_step = -1
-    for _ in range(40):
+    for i in range(28):
         action = np.zeros(env.action_dim, dtype=np.float32)
         action[-1] = 1.0
         step_once(action)
-        if grasp_step < 0 and env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
-            grasp_step = len(recorder.actions) - 1
+        if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
+            if grasp_step < 0:
+                grasp_step = len(recorder.actions) - 1
+            if i >= 3:
+                hold(1.0, 4)
+                break
 
     goto(np.array([object_pos[0], object_pos[1], carry_z]), 1.0)
     fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] - 0.14, carry_z])
@@ -247,9 +251,14 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
     goto(np.array([target_pos[0], target_pos[1], target_pos[2] + 0.10]), 1.0)
     place_step = len(recorder.actions) - 1
 
-    hold(-1.0, 40)
+    for i in range(16):
+        action = np.zeros(env.action_dim, dtype=np.float32)
+        action[-1] = -1.0
+        if i >= 8:
+            action[2] = 0.15
+        step_once(action)
     goto(np.array([target_pos[0], target_pos[1], carry_z]), -1.0)
-    hold(-1.0, 8)
+    hold(-1.0, 2)
 
     raw_success = bool(env._check_success())
     success = raw_success and (not collision_flag)
