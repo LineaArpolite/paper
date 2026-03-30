@@ -158,7 +158,88 @@ def _obstacle_bbox_xy(env) -> np.ndarray:
     return np.asarray([min(xs), max(xs), min(ys), max(ys)], dtype=np.float32)
 
 
-def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> RolloutResult:
+def _layout_feature(obs: Dict, obstacle_pos: np.ndarray) -> np.ndarray:
+    obj_xy = obs[f"{TARGET_OBJECT_NAME}_pos"][:2]
+    tgt_xy = obs[f"{TARGET_CONTAINER_NAME}_pos"][:2]
+    obs_xy = obstacle_pos[:2]
+    return np.concatenate([obj_xy, tgt_xy, obs_xy]).astype(np.float32)
+
+
+def _plan_shared_prefix(env, snapshot: np.ndarray) -> Tuple[np.ndarray, bool]:
+    obs = _reset_to_snapshot(env, snapshot)
+    actions: List[np.ndarray] = []
+
+    target_obj = [o for o in env.objects if o.name == TARGET_OBJECT_NAME][0]
+    carry_z = 0.235
+
+    def step_plan(action: np.ndarray) -> None:
+        nonlocal obs
+        obs, _, _, _ = env.step(action)
+        actions.append(action.astype(np.float32).copy())
+
+    def goto(
+        target_pos: np.ndarray,
+        gripper_cmd: float,
+        tol: float = 0.012,
+        max_steps: int = 140,
+        gain: float = 10.0,
+    ) -> None:
+        prev_dist = 1e9
+        near_stable_steps = 0
+        for _ in range(max_steps):
+            delta = target_pos - obs["robot0_eef_pos"]
+            dist = float(np.linalg.norm(delta))
+            if dist < tol:
+                break
+            action = np.zeros(env.action_dim, dtype=np.float32)
+            action[:3] = np.clip(gain * delta, -1.0, 1.0)
+            action[-1] = gripper_cmd
+            step_plan(action)
+
+            if abs(prev_dist - dist) < 3e-4 and dist < (tol * 1.8):
+                near_stable_steps += 1
+                if near_stable_steps >= 4:
+                    break
+            else:
+                near_stable_steps = 0
+            prev_dist = dist
+
+    object_pos = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+    obstacle_pos = _obstacle_position(env)
+
+    goto(object_pos + np.array([0.0, 0.0, 0.13]), -1.0)
+    goto(object_pos + np.array([0.0, 0.0, 0.02]), -1.0, tol=0.008, max_steps=120, gain=8.0)
+
+    grasped = False
+    for _ in range(24):
+        action = np.zeros(env.action_dim, dtype=np.float32)
+        action[-1] = 1.0
+        step_plan(action)
+        if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
+            grasped = True
+            for _ in range(4):
+                action = np.zeros(env.action_dim, dtype=np.float32)
+                action[-1] = 1.0
+                step_plan(action)
+            break
+
+    if not grasped:
+        return np.asarray(actions, dtype=np.float32), False
+
+    current_obj_pos = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+    goto(np.array([current_obj_pos[0], current_obj_pos[1], carry_z]), 1.0, tol=0.011, max_steps=140, gain=9.0)
+    fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] - 0.14, carry_z], dtype=np.float32)
+    goto(fork, 1.0, tol=0.011, max_steps=150, gain=9.0)
+
+    return np.asarray(actions, dtype=np.float32), True
+
+
+def _rollout_strategy(
+    env,
+    snapshot: np.ndarray,
+    strategy_label: str,
+    prefix_actions: np.ndarray,
+) -> RolloutResult:
     assert strategy_label in ["A", "B"]
 
     obstacle_ids, robot_ids, object_ids = _collision_id_sets(env)
@@ -180,47 +261,49 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
             collision_flag = True
             collision_steps.append(len(recorder.actions) - 1)
 
-    def goto(target_pos: np.ndarray, gripper_cmd: float, tol: float = 0.01, max_steps: int = 180) -> None:
+    def goto(
+        target_pos: np.ndarray,
+        gripper_cmd: float,
+        tol: float = 0.011,
+        max_steps: int = 140,
+        gain: float = 9.0,
+    ) -> None:
+        prev_dist = 1e9
+        near_stable_steps = 0
         for _ in range(max_steps):
             delta = target_pos - obs["robot0_eef_pos"]
-            action = np.zeros(env.action_dim, dtype=np.float32)
-            action[:3] = np.clip(8.0 * delta, -1.0, 1.0)
-            action[-1] = gripper_cmd
-            step_once(action)
-            if np.linalg.norm(delta) < tol:
+            dist = float(np.linalg.norm(delta))
+            if dist < tol:
                 break
-
-    def hold(gripper_cmd: float, steps: int) -> None:
-        for _ in range(steps):
             action = np.zeros(env.action_dim, dtype=np.float32)
+            action[:3] = np.clip(gain * delta, -1.0, 1.0)
             action[-1] = gripper_cmd
             step_once(action)
 
-    carry_z = 0.24
-    side_x = 0.12
-    side_y_pre = -0.02 if strategy_label == "A" else -0.10
-    side_y_post = 0.16
+            if abs(prev_dist - dist) < 3e-4 and dist < (tol * 1.8):
+                near_stable_steps += 1
+                if near_stable_steps >= 4:
+                    break
+            else:
+                near_stable_steps = 0
+            prev_dist = dist
 
-    object_pos = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+    carry_z = float(obs["robot0_eef_pos"][2])
+    side_x = 0.115
+    side_y_pre = -0.02 if strategy_label == "A" else -0.10
+    side_y_post = 0.155
+
     target_pos = obs[f"{TARGET_CONTAINER_NAME}_pos"].copy()
     obstacle_pos = _obstacle_position(env)
 
-    # Shared pre-branch prefix: reach, grasp, lift, move to fork.
-    goto(object_pos + np.array([0.0, 0.0, 0.14]), -1.0)
-    goto(object_pos + np.array([0.0, 0.0, 0.03]), -1.0)
-
     grasp_step = -1
-    for _ in range(40):
-        action = np.zeros(env.action_dim, dtype=np.float32)
-        action[-1] = 1.0
+    # Replay exactly the same pre-branch actions for A and B to minimize visible divergence.
+    for action in prefix_actions:
         step_once(action)
         if grasp_step < 0 and env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
             grasp_step = len(recorder.actions) - 1
 
-    goto(np.array([object_pos[0], object_pos[1], carry_z]), 1.0)
-    fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] - 0.14, carry_z])
-    goto(fork, 1.0)
-    branch_step = len(recorder.actions) - 1
+    branch_step = max(0, len(recorder.actions) - 1)
 
     # Divergence: left vs right route around the obstacle.
     side_sign = -1.0 if strategy_label == "A" else 1.0
@@ -231,13 +314,23 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str) -> Rollout
     for waypoint in waypoints:
         goto(waypoint, 1.0)
 
-    goto(np.array([target_pos[0], target_pos[1], carry_z]), 1.0)
-    goto(np.array([target_pos[0], target_pos[1], target_pos[2] + 0.10]), 1.0)
+    # Raise before final horizontal approach to reduce rim rubbing on basket.
+    transit_z = max(carry_z + 0.05, float(target_pos[2] + 0.23))
+    current_ee = obs["robot0_eef_pos"].copy()
+    goto(np.array([current_ee[0], current_ee[1], transit_z]), 1.0, tol=0.010, max_steps=120, gain=8.0)
+    goto(np.array([target_pos[0], target_pos[1], transit_z]), 1.0, tol=0.010, max_steps=130, gain=8.0)
+    # Use lower, gentler insertion to reduce object-basket rim hits near placement.
+    goto(np.array([target_pos[0], target_pos[1], target_pos[2] + 0.055]), 1.0, tol=0.007, max_steps=180, gain=7.0)
     place_step = len(recorder.actions) - 1
 
-    hold(-1.0, 40)
-    goto(np.array([target_pos[0], target_pos[1], carry_z]), -1.0)
-    hold(-1.0, 8)
+    for i in range(12):
+        action = np.zeros(env.action_dim, dtype=np.float32)
+        action[-1] = -1.0
+        if i >= 6:
+            action[2] = 0.18
+        step_once(action)
+
+    goto(np.array([target_pos[0], target_pos[1], carry_z + 0.015]), -1.0, tol=0.012, max_steps=90, gain=8.0)
 
     raw_success = bool(env._check_success())
     success = raw_success and (not collision_flag)
@@ -280,6 +373,9 @@ def _save_rollout_hdf5(
     random_seed: int,
     bddl_file: Path,
     instruction: str,
+    init_object_pos: np.ndarray,
+    init_target_pos: np.ndarray,
+    init_obstacle_pos: np.ndarray,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -321,6 +417,9 @@ def _save_rollout_hdf5(
         ep.attrs["target_container_name"] = TARGET_CONTAINER_NAME
         ep.attrs["obstacle_name"] = OBSTACLE_NAME
         ep.attrs["obstacle_bbox_xy_json"] = json.dumps(result.obstacle_bbox_xy.tolist())
+        ep.attrs["init_object_pos_xyz_json"] = json.dumps(init_object_pos.tolist())
+        ep.attrs["init_target_pos_xyz_json"] = json.dumps(init_target_pos.tolist())
+        ep.attrs["init_obstacle_pos_xyz_json"] = json.dumps(init_obstacle_pos.tolist())
 
         grp.attrs["instruction"] = instruction
         grp.attrs["group_id"] = int(group_id)
@@ -345,6 +444,9 @@ def _save_metadata_json(
     random_seed: int,
     bddl_file: Path,
     instruction: str,
+    init_object_pos: np.ndarray,
+    init_target_pos: np.ndarray,
+    init_obstacle_pos: np.ndarray,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -360,6 +462,9 @@ def _save_metadata_json(
             "target_container_name": TARGET_CONTAINER_NAME,
             "obstacle_name": OBSTACLE_NAME,
             "obstacle_bbox_xy": result.obstacle_bbox_xy.tolist(),
+            "init_object_pos_xyz": init_object_pos.tolist(),
+            "init_target_pos_xyz": init_target_pos.tolist(),
+            "init_obstacle_pos_xyz": init_obstacle_pos.tolist(),
         },
         "trajectory_length": int(len(result.actions)),
         "key_steps": {
@@ -400,16 +505,39 @@ def main() -> None:
     )
     parser.add_argument("--num-groups", type=int, default=5)
     parser.add_argument(
+        "--seed-start",
+        type=int,
+        default=1,
+        help="Used when --seed-candidates is empty.",
+    )
+    parser.add_argument(
+        "--seed-end",
+        type=int,
+        default=240,
+        help="Used when --seed-candidates is empty.",
+    )
+    parser.add_argument(
         "--seed-candidates",
         type=str,
-        default="1,2,4,6,7,8,9,10,11,12,13,14,15",
+        default="",
+        help="Comma-separated seeds. Leave empty to use [seed-start, seed-end].",
+    )
+    parser.add_argument(
+        "--min-layout-distance",
+        type=float,
+        default=0.022,
+        help="Minimum L2 distance between accepted initial layouts (obj_xy, target_xy, obstacle_xy).",
     )
     args = parser.parse_args()
 
     if not args.bddl_file.exists():
         raise FileNotFoundError(f"Missing BDDL file: {args.bddl_file}")
 
-    seeds = _parse_seeds(args.seed_candidates)
+    if args.seed_candidates.strip():
+        seeds = _parse_seeds(args.seed_candidates)
+    else:
+        seeds = list(range(args.seed_start, args.seed_end + 1))
+
     trajectories_dir = args.output_root / "trajectories"
     metadata_dir = args.output_root / "metadata"
     analysis_dir = args.output_root / "analysis"
@@ -421,6 +549,7 @@ def main() -> None:
     instruction = problem_info["language_instruction"]
 
     accepted: List[Dict] = []
+    accepted_layouts: List[np.ndarray] = []
 
     for seed in seeds:
         if len(accepted) >= args.num_groups:
@@ -428,11 +557,32 @@ def main() -> None:
 
         env, _ = _build_env(args.bddl_file)
         env.seed(seed)
-        env.reset()
+        init_obs = env.reset()
         snapshot = env.sim.get_state().flatten().copy()
+        init_object_pos = init_obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+        init_target_pos = init_obs[f"{TARGET_CONTAINER_NAME}_pos"].copy()
+        init_obstacle_pos = _obstacle_position(env).copy()
+        layout_feat = _layout_feature(init_obs, init_obstacle_pos)
 
-        result_a = _rollout_strategy(env, snapshot, "A")
-        result_b = _rollout_strategy(env, snapshot, "B")
+        min_layout_dist = float("inf")
+        if accepted_layouts:
+            min_layout_dist = min(float(np.linalg.norm(layout_feat - prev)) for prev in accepted_layouts)
+            if min_layout_dist < args.min_layout_distance:
+                print(
+                    f"[skip-diversity] seed={seed} min_layout_dist={min_layout_dist:.4f} "
+                    f"< threshold={args.min_layout_distance:.4f}"
+                )
+                env.close()
+                continue
+
+        prefix_actions, prefix_ok = _plan_shared_prefix(env, snapshot)
+        if not prefix_ok:
+            print(f"[skip-prefix] seed={seed} failed to build stable shared prefix")
+            env.close()
+            continue
+
+        result_a = _rollout_strategy(env, snapshot, "A", prefix_actions)
+        result_b = _rollout_strategy(env, snapshot, "B", prefix_actions)
         env.close()
 
         if not (result_a.success and result_b.success):
@@ -449,15 +599,62 @@ def main() -> None:
         a_json = metadata_dir / f"group_{group_id:02d}_A.json"
         b_json = metadata_dir / f"group_{group_id:02d}_B.json"
 
-        _save_rollout_hdf5(a_h5, result_a, group_id, seed, args.bddl_file, instruction)
-        _save_rollout_hdf5(b_h5, result_b, group_id, seed, args.bddl_file, instruction)
-        _save_metadata_json(a_json, result_a, group_id, seed, args.bddl_file, instruction)
-        _save_metadata_json(b_json, result_b, group_id, seed, args.bddl_file, instruction)
+        _save_rollout_hdf5(
+            a_h5,
+            result_a,
+            group_id,
+            seed,
+            args.bddl_file,
+            instruction,
+            init_object_pos,
+            init_target_pos,
+            init_obstacle_pos,
+        )
+        _save_rollout_hdf5(
+            b_h5,
+            result_b,
+            group_id,
+            seed,
+            args.bddl_file,
+            instruction,
+            init_object_pos,
+            init_target_pos,
+            init_obstacle_pos,
+        )
+        _save_metadata_json(
+            a_json,
+            result_a,
+            group_id,
+            seed,
+            args.bddl_file,
+            instruction,
+            init_object_pos,
+            init_target_pos,
+            init_obstacle_pos,
+        )
+        _save_metadata_json(
+            b_json,
+            result_b,
+            group_id,
+            seed,
+            args.bddl_file,
+            instruction,
+            init_object_pos,
+            init_target_pos,
+            init_obstacle_pos,
+        )
+        accepted_layouts.append(layout_feat.copy())
 
         accepted.append(
             {
                 "group_id": group_id,
                 "seed": seed,
+                "min_layout_dist_to_prev": None if min_layout_dist == float("inf") else float(min_layout_dist),
+                "init_layout": {
+                    "object_xyz": init_object_pos.tolist(),
+                    "target_xyz": init_target_pos.tolist(),
+                    "obstacle_xyz": init_obstacle_pos.tolist(),
+                },
                 "A": {
                     "path": str(a_h5),
                     "num_steps": int(len(result_a.actions)),
@@ -478,7 +675,7 @@ def main() -> None:
     if len(accepted) < args.num_groups:
         raise RuntimeError(
             f"Collected {len(accepted)} valid groups, less than requested {args.num_groups}. "
-            f"Try adding more seed candidates."
+            f"Try expanding seed range or lowering --min-layout-distance."
         )
 
     summary_path = analysis_dir / "collection_summary.json"

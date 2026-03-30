@@ -7,8 +7,8 @@ def build_bddl(language: str) -> str:
   (:domain robosuite)
   (:language {language})
   (:regions
-    (bin_region (:target floor) (:ranges ((-0.01 0.25 0.01 0.27))))
-    (target_object_region (:target floor) (:ranges ((-0.145 -0.265 -0.095 -0.215))))
+    (bin_region (:target floor) (:ranges ((-0.03 0.235 0.03 0.285))))
+    (target_object_region (:target floor) (:ranges ((-0.16 -0.29 -0.08 -0.20))))
     (obstacle_region (:target floor) (:ranges ((-0.02 -0.03 0.02 0.03))))
     (other_object_region_0 (:target floor) (:ranges ((0.025 -0.125 0.075 -0.075))))
     (other_object_region_1 (:target floor) (:ranges ((-0.175 0.035 -0.125 0.085))))
