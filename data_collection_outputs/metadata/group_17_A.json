@@ -3,24 +3,24 @@
   "trajectory_id": "group_17_A",
   "strategy_label": "A",
   "instruction": "pick up and move the object to the target area",
-  "random_seed": 131,
+  "random_seed": 153,
   "environment_config": {
     "bddl_file": "data_collection_outputs/bddl/dual_strategy_milk_obstacle.bddl",
     "target_object_name": "milk_1",
     "target_container_name": "wooden_tray_1",
     "obstacle_name": "obstacle_1",
     "obstacle_bbox_xy": [
-      -0.084435373544693,
-      0.05626462399959564,
-      -0.045016877353191376,
-      0.09804197400808334
+      -0.06802422553300858,
+      0.07267577201128006,
+      -0.08993815630674362,
+      0.053120698779821396
     ]
   },
-  "trajectory_length": 339,
+  "trajectory_length": 338,
   "key_steps": {
-    "branch_step": 233,
-    "grasp_step": 194,
-    "place_step": 314
+    "branch_step": 232,
+    "grasp_step": 191,
+    "place_step": 313
   },
   "status": {
     "success": true,

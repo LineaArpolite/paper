@@ -423,6 +423,62 @@ def _parse_seeds(text: str) -> List[int]:
     return values
 
 
+def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float]:
+    bstep = int(min(a.branch_step, b.branch_step, len(a.actions) - 1, len(b.actions) - 1))
+    pre_n = int(min(max(2, bstep), len(a.actions), len(b.actions)))
+    if pre_n <= 0:
+        pre_n = int(min(len(a.actions), len(b.actions)))
+
+    pre_action_l2 = float(np.linalg.norm(a.actions[:pre_n, :3] - b.actions[:pre_n, :3], axis=1).mean())
+    pre_ee_l2 = float(np.linalg.norm(a.ee_pos[:pre_n] - b.ee_pos[:pre_n], axis=1).mean())
+    pre_object_l2 = float(np.linalg.norm(a.object_pos[:pre_n] - b.object_pos[:pre_n], axis=1).mean())
+
+    ia = int(np.clip(bstep, 0, len(a.agentview_rgb) - 1))
+    ib = int(np.clip(bstep, 0, len(b.agentview_rgb) - 1))
+    img_a = a.agentview_rgb[ia].astype(np.float32)
+    img_b = b.agentview_rgb[ib].astype(np.float32)
+    branch_image_mse = float(np.mean((img_a - img_b) ** 2))
+
+    ga = int(np.clip(a.grasp_step, 0, len(a.ee_pos) - 1))
+    gb = int(np.clip(b.grasp_step, 0, len(b.ee_pos) - 1))
+    grasp_step_diff = float(abs(int(a.grasp_step) - int(b.grasp_step)))
+    a_grasp_obj_dist = float(np.linalg.norm(a.ee_pos[ga] - a.object_pos[ga]))
+    b_grasp_obj_dist = float(np.linalg.norm(b.ee_pos[gb] - b.object_pos[gb]))
+    grasp_obj_dist_max = float(max(a_grasp_obj_dist, b_grasp_obj_dist))
+    grasp_object_gap = float(np.linalg.norm(a.object_pos[ga] - b.object_pos[gb]))
+
+    return {
+        "pre_action_l2": pre_action_l2,
+        "pre_ee_l2": pre_ee_l2,
+        "pre_object_l2": pre_object_l2,
+        "branch_image_mse": branch_image_mse,
+        "grasp_step_diff": grasp_step_diff,
+        "grasp_obj_dist_max": grasp_obj_dist_max,
+        "grasp_object_gap": grasp_object_gap,
+        "grasp_step_a": float(a.grasp_step),
+        "grasp_step_b": float(b.grasp_step),
+    }
+
+
+def _pair_quality_ok(metrics: Dict[str, float], args: argparse.Namespace) -> Tuple[bool, str]:
+    checks = [
+        ("pre_action_l2", float(args.max_pre_action_l2)),
+        ("pre_ee_l2", float(args.max_pre_ee_l2)),
+        ("pre_object_l2", float(args.max_pre_object_l2)),
+        ("branch_image_mse", float(args.max_branch_image_mse)),
+        ("grasp_step_diff", float(args.max_grasp_step_diff)),
+        ("grasp_obj_dist_max", float(args.max_grasp_obj_dist)),
+        ("grasp_object_gap", float(args.max_grasp_object_gap)),
+    ]
+    for key, threshold in checks:
+        value = float(metrics[key])
+        if value > threshold:
+            return False, f"{key}={value:.6f}>{threshold:.6f}"
+    if int(metrics["grasp_step_a"]) < 0 or int(metrics["grasp_step_b"]) < 0:
+        return False, "missing grasp_step"
+    return True, ""
+
+
 def main() -> None:
     global TARGET_CONTAINER_NAME
     parser = argparse.ArgumentParser()
@@ -463,6 +519,19 @@ def main() -> None:
     parser.add_argument("--release-lift-start", type=int, default=4)
     parser.add_argument("--release-lift-z", type=float, default=0.16)
     parser.add_argument("--final-open-hold-steps", type=int, default=0)
+    parser.add_argument(
+        "--enforce-pair-quality",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Filter out seeds that fail pre-branch consistency / grasp quality checks.",
+    )
+    parser.add_argument("--max-pre-action-l2", type=float, default=0.095)
+    parser.add_argument("--max-pre-ee-l2", type=float, default=0.015)
+    parser.add_argument("--max-pre-object-l2", type=float, default=0.018)
+    parser.add_argument("--max-branch-image-mse", type=float, default=420.0)
+    parser.add_argument("--max-grasp-step-diff", type=float, default=3.0)
+    parser.add_argument("--max-grasp-obj-dist", type=float, default=0.045)
+    parser.add_argument("--max-grasp-object-gap", type=float, default=0.020)
     args = parser.parse_args()
 
     if not args.bddl_file.exists():
@@ -505,6 +574,12 @@ def main() -> None:
                 f"B(success={result_b.success}, collision={result_b.collision})"
             )
             continue
+        quality_metrics = _pair_quality_metrics(result_a, result_b)
+        if bool(args.enforce_pair_quality):
+            ok, reason = _pair_quality_ok(quality_metrics, args)
+            if not ok:
+                print(f"[skip] seed={seed} quality={reason}")
+                continue
 
         group_id = len(accepted) + 1
         a_h5 = trajectories_dir / f"group_{group_id:02d}_A.hdf5"
@@ -533,6 +608,7 @@ def main() -> None:
                     "branch_step": int(result_b.branch_step),
                     "collision": bool(result_b.collision),
                 },
+                "quality": {k: float(v) for k, v in quality_metrics.items()},
             }
         )
 

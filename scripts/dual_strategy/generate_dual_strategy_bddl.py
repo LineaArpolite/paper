@@ -8,13 +8,8 @@ def build_bddl(language: str, container_name: str, container_type: str) -> str:
   (:language {language})
   (:regions
     (bin_region (:target floor) (:ranges ((-0.025 0.242 0.025 0.278))))
-    (target_object_region (:target floor) (:ranges ((-0.165 -0.285 -0.075 -0.195))))
-    (obstacle_region (:target floor) (:ranges ((-0.022 -0.034 0.022 0.034))))
-    (other_object_region_0 (:target floor) (:ranges ((0.025 -0.125 0.075 -0.075))))
-    (other_object_region_1 (:target floor) (:ranges ((-0.175 0.035 -0.125 0.085))))
-    (other_object_region_2 (:target floor) (:ranges ((0.075 -0.225 0.125 -0.175))))
-    (other_object_region_3 (:target floor) (:ranges ((0.125 0.005 0.175 0.055))))
-    (other_object_region_4 (:target floor) (:ranges ((-0.225 -0.105 -0.175 -0.055))))
+    (target_object_region (:target floor) (:ranges ((-0.16 -0.28 -0.08 -0.20))))
+    (obstacle_region (:target floor) (:ranges ((-0.02 -0.03 0.02 0.03))))
     (contain_region (:target {container_name}))
   )
   (:fixtures
@@ -24,20 +19,10 @@ def build_bddl(language: str, container_name: str, container_type: str) -> str:
   (:objects
     milk_1 - milk
     {container_name} - {container_type}
-    cream_cheese_1 - cream_cheese
-    tomato_sauce_1 - tomato_sauce
-    butter_1 - butter
-    orange_juice_1 - orange_juice
-    chocolate_pudding_1 - chocolate_pudding
   )
   (:obj_of_interest milk_1 {container_name})
   (:init
     (On milk_1 floor_target_object_region)
-    (On cream_cheese_1 floor_other_object_region_0)
-    (On tomato_sauce_1 floor_other_object_region_1)
-    (On butter_1 floor_other_object_region_2)
-    (On orange_juice_1 floor_other_object_region_3)
-    (On chocolate_pudding_1 floor_other_object_region_4)
     (On {container_name} floor_bin_region)
     (On obstacle_1 floor_obstacle_region)
   )
