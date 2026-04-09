@@ -7,9 +7,9 @@ def build_bddl(language: str, container_name: str, container_type: str) -> str:
   (:domain robosuite)
   (:language {language})
   (:regions
-    (bin_region (:target floor) (:ranges ((-0.025 0.242 0.025 0.278))))
-    (target_object_region (:target floor) (:ranges ((-0.16 -0.28 -0.08 -0.20))))
-    (obstacle_region (:target floor) (:ranges ((-0.02 -0.03 0.02 0.03))))
+    (bin_region (:target floor) (:ranges ((-0.115 0.242 -0.085 0.278))))
+    (target_object_region (:target floor) (:ranges ((-0.130 -0.280 -0.070 -0.200))))
+    (obstacle_region (:target floor) (:ranges ((-0.115 -0.030 -0.085 0.030))))
     (contain_region (:target {container_name}))
   )
   (:fixtures
@@ -43,8 +43,8 @@ def main() -> None:
         type=str,
         default="pick up and move the object to the target area",
     )
-    parser.add_argument("--container-name", type=str, default="basket_1")
-    parser.add_argument("--container-type", type=str, default="basket")
+    parser.add_argument("--container-name", type=str, default="wooden_tray_1")
+    parser.add_argument("--container-type", type=str, default="wooden_tray")
     args = parser.parse_args()
 
     args.output_file.parent.mkdir(parents=True, exist_ok=True)

@@ -180,23 +180,39 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
     recorder = Recorder()
     collision_steps: List[int] = []
     collision_flag = False
+    last_xyz_cmd = np.zeros(3, dtype=np.float32)
 
     target_obj = [o for o in env.objects if o.name == TARGET_OBJECT_NAME][0]
 
     def step_once(action: np.ndarray) -> None:
-        nonlocal obs, collision_flag
+        nonlocal obs, collision_flag, last_xyz_cmd
         obs, _, _, _ = env.step(action)
+        last_xyz_cmd = action[:3].astype(np.float32).copy()
         obstacle_pos = _obstacle_position(env)
         recorder.add(action, env, obs, obstacle_pos)
         if _has_collision_with_obstacle(env, obstacle_ids, robot_ids, object_ids):
             collision_flag = True
             collision_steps.append(len(recorder.actions) - 1)
 
-    def goto(target_pos: np.ndarray, gripper_cmd: float, tol: float = -1.0, max_steps: int = -1) -> None:
+    def goto(
+        target_pos: np.ndarray,
+        gripper_cmd: float,
+        tol: float = -1.0,
+        max_steps: int = -1,
+        max_speed: float = -1.0,
+        max_axis_speed: float = -1.0,
+        max_accel: float = -1.0,
+    ) -> None:
         if tol <= 0.0:
             tol = float(args.goto_tol)
         if max_steps <= 0:
             max_steps = int(args.goto_max_steps)
+        if max_speed <= 0.0:
+            max_speed = float(args.goto_max_speed)
+        if max_axis_speed <= 0.0:
+            max_axis_speed = float(args.goto_max_axis_speed)
+        if max_accel <= 0.0:
+            max_accel = float(args.goto_max_accel)
         prev_dist = 1e9
         near_stable_steps = 0
         for _ in range(max_steps):
@@ -205,7 +221,12 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
             if dist < tol:
                 break
             action = np.zeros(env.action_dim, dtype=np.float32)
-            action[:3] = np.clip(float(args.goto_gain) * delta, -1.0, 1.0)
+            cmd = np.clip(float(args.goto_gain) * delta, -max_axis_speed, max_axis_speed)
+            cmd_norm = float(np.linalg.norm(cmd))
+            if cmd_norm > max_speed and cmd_norm > 1e-8:
+                cmd = cmd * (max_speed / cmd_norm)
+            cmd_delta = np.clip(cmd - last_xyz_cmd, -max_accel, max_accel)
+            action[:3] = last_xyz_cmd + cmd_delta
             action[-1] = gripper_cmd
             step_once(action)
             if abs(prev_dist - dist) < float(args.goto_stable_delta) and dist < (tol * float(args.goto_stable_factor)):
@@ -232,12 +253,37 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
     obstacle_pos = _obstacle_position(env)
 
     # Shared pre-branch prefix: reach, grasp, lift, move to fork.
-    goto(object_pos + np.array([0.0, 0.0, float(args.pregrasp_hover_z)]), -1.0)
-    goto(object_pos + np.array([0.0, 0.0, float(args.pregrasp_touch_z)]), -1.0)
+    goto(
+        object_pos + np.array([0.0, 0.0, float(args.pregrasp_hover_z)]),
+        -1.0,
+        max_speed=float(args.approach_max_speed),
+        max_accel=float(args.approach_max_accel),
+    )
+    goto(
+        object_pos + np.array([0.0, 0.0, float(args.pregrasp_touch_z)]),
+        -1.0,
+        tol=float(args.touch_goto_tol),
+        max_steps=int(args.touch_goto_max_steps),
+        max_speed=float(args.touch_max_speed),
+        max_accel=float(args.touch_max_accel),
+    )
 
     grasp_step = -1
     for i in range(int(args.grasp_close_steps)):
         action = np.zeros(env.action_dim, dtype=np.float32)
+        live_obj = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+        live_ee = obs["robot0_eef_pos"].copy()
+        grasp_delta = live_obj - live_ee
+        action[:2] = np.clip(
+            float(args.grasp_track_gain) * grasp_delta[:2],
+            -float(args.grasp_track_max_xy),
+            float(args.grasp_track_max_xy),
+        )
+        action[2] = np.clip(
+            float(args.grasp_track_gain) * grasp_delta[2],
+            -float(args.grasp_track_max_z),
+            float(args.grasp_track_max_z),
+        )
         action[-1] = 1.0
         step_once(action)
         if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
@@ -248,22 +294,49 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
                     hold(1.0, int(args.grasp_hold_steps))
                 break
 
-    goto(np.array([object_pos[0], object_pos[1], carry_z]), 1.0)
+    goto(
+        np.array([object_pos[0], object_pos[1], carry_z]),
+        1.0,
+        max_speed=float(args.lift_max_speed),
+        max_accel=float(args.lift_max_accel),
+    )
     fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] + float(args.fork_y_offset), carry_z])
-    goto(fork, 1.0)
+    goto(
+        fork,
+        1.0,
+        max_speed=float(args.lift_max_speed),
+        max_accel=float(args.lift_max_accel),
+    )
     branch_step = len(recorder.actions) - 1
 
     # Divergence: left vs right route around the obstacle.
     side_sign = -1.0 if strategy_label == "A" else 1.0
+    side_y_mid = 0.5 * (side_y_pre + side_y_post)
     waypoints = [
         np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_pre, carry_z]),
+        np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_mid, carry_z]),
         np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_post, carry_z]),
     ]
     for waypoint in waypoints:
-        goto(waypoint, 1.0)
+        goto(
+            waypoint,
+            1.0,
+            max_speed=float(args.detour_max_speed),
+            max_accel=float(args.detour_max_accel),
+        )
 
-    goto(np.array([target_pos[0], target_pos[1], carry_z]), 1.0)
-    goto(np.array([target_pos[0], target_pos[1], target_pos[2] + 0.10]), 1.0)
+    goto(
+        np.array([target_pos[0], target_pos[1], carry_z]),
+        1.0,
+        max_speed=float(args.place_max_speed),
+        max_accel=float(args.place_max_accel),
+    )
+    goto(
+        np.array([target_pos[0], target_pos[1], target_pos[2] + 0.10]),
+        1.0,
+        max_speed=float(args.place_max_speed),
+        max_accel=float(args.place_max_accel),
+    )
     place_step = len(recorder.actions) - 1
 
     for i in range(int(args.release_steps)):
@@ -272,7 +345,12 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
         if i >= int(args.release_lift_start):
             action[2] = float(args.release_lift_z)
         step_once(action)
-    goto(np.array([target_pos[0], target_pos[1], carry_z]), -1.0)
+    goto(
+        np.array([target_pos[0], target_pos[1], carry_z]),
+        -1.0,
+        max_speed=float(args.retreat_max_speed),
+        max_accel=float(args.retreat_max_accel),
+    )
     if int(args.final_open_hold_steps) > 0:
         hold(-1.0, int(args.final_open_hold_steps))
 
@@ -438,6 +516,8 @@ def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float
     img_a = a.agentview_rgb[ia].astype(np.float32)
     img_b = b.agentview_rgb[ib].astype(np.float32)
     branch_image_mse = float(np.mean((img_a - img_b) ** 2))
+    branch_ee_l2 = float(np.linalg.norm(a.ee_pos[ia] - b.ee_pos[ib]))
+    branch_object_l2 = float(np.linalg.norm(a.object_pos[ia] - b.object_pos[ib]))
 
     ga = int(np.clip(a.grasp_step, 0, len(a.ee_pos) - 1))
     gb = int(np.clip(b.grasp_step, 0, len(b.ee_pos) - 1))
@@ -452,6 +532,8 @@ def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float
         "pre_ee_l2": pre_ee_l2,
         "pre_object_l2": pre_object_l2,
         "branch_image_mse": branch_image_mse,
+        "branch_ee_l2": branch_ee_l2,
+        "branch_object_l2": branch_object_l2,
         "grasp_step_diff": grasp_step_diff,
         "grasp_obj_dist_max": grasp_obj_dist_max,
         "grasp_object_gap": grasp_object_gap,
@@ -466,6 +548,8 @@ def _pair_quality_ok(metrics: Dict[str, float], args: argparse.Namespace) -> Tup
         ("pre_ee_l2", float(args.max_pre_ee_l2)),
         ("pre_object_l2", float(args.max_pre_object_l2)),
         ("branch_image_mse", float(args.max_branch_image_mse)),
+        ("branch_ee_l2", float(args.max_branch_ee_l2)),
+        ("branch_object_l2", float(args.max_branch_object_l2)),
         ("grasp_step_diff", float(args.max_grasp_step_diff)),
         ("grasp_obj_dist_max", float(args.max_grasp_obj_dist)),
         ("grasp_object_gap", float(args.max_grasp_object_gap)),
@@ -507,14 +591,34 @@ def main() -> None:
     parser.add_argument("--goto-gain", type=float, default=9.0)
     parser.add_argument("--goto-tol", type=float, default=0.01)
     parser.add_argument("--goto-max-steps", type=int, default=160)
+    parser.add_argument("--goto-max-speed", type=float, default=0.85)
+    parser.add_argument("--goto-max-axis-speed", type=float, default=0.85)
+    parser.add_argument("--goto-max-accel", type=float, default=0.22)
     parser.add_argument("--goto-stable-delta", type=float, default=3e-4)
     parser.add_argument("--goto-stable-factor", type=float, default=1.7)
     parser.add_argument("--goto-stable-steps", type=int, default=4)
+    parser.add_argument("--approach-max-speed", type=float, default=0.70)
+    parser.add_argument("--approach-max-accel", type=float, default=0.18)
+    parser.add_argument("--touch-max-speed", type=float, default=0.42)
+    parser.add_argument("--touch-max-accel", type=float, default=0.12)
+    parser.add_argument("--lift-max-speed", type=float, default=0.58)
+    parser.add_argument("--lift-max-accel", type=float, default=0.16)
+    parser.add_argument("--detour-max-speed", type=float, default=0.38)
+    parser.add_argument("--detour-max-accel", type=float, default=0.08)
+    parser.add_argument("--place-max-speed", type=float, default=0.48)
+    parser.add_argument("--place-max-accel", type=float, default=0.12)
+    parser.add_argument("--retreat-max-speed", type=float, default=0.38)
+    parser.add_argument("--retreat-max-accel", type=float, default=0.08)
     parser.add_argument("--pregrasp-hover-z", type=float, default=0.14)
     parser.add_argument("--pregrasp-touch-z", type=float, default=0.03)
-    parser.add_argument("--grasp-close-steps", type=int, default=20)
-    parser.add_argument("--grasp-min-settle-steps", type=int, default=3)
-    parser.add_argument("--grasp-hold-steps", type=int, default=1)
+    parser.add_argument("--touch-goto-tol", type=float, default=0.028)
+    parser.add_argument("--touch-goto-max-steps", type=int, default=60)
+    parser.add_argument("--grasp-close-steps", type=int, default=16)
+    parser.add_argument("--grasp-min-settle-steps", type=int, default=2)
+    parser.add_argument("--grasp-hold-steps", type=int, default=0)
+    parser.add_argument("--grasp-track-gain", type=float, default=6.0)
+    parser.add_argument("--grasp-track-max-xy", type=float, default=0.05)
+    parser.add_argument("--grasp-track-max-z", type=float, default=0.02)
     parser.add_argument("--release-steps", type=int, default=8)
     parser.add_argument("--release-lift-start", type=int, default=4)
     parser.add_argument("--release-lift-z", type=float, default=0.16)
@@ -525,13 +629,15 @@ def main() -> None:
         default=True,
         help="Filter out seeds that fail pre-branch consistency / grasp quality checks.",
     )
-    parser.add_argument("--max-pre-action-l2", type=float, default=0.095)
-    parser.add_argument("--max-pre-ee-l2", type=float, default=0.015)
-    parser.add_argument("--max-pre-object-l2", type=float, default=0.018)
-    parser.add_argument("--max-branch-image-mse", type=float, default=420.0)
-    parser.add_argument("--max-grasp-step-diff", type=float, default=3.0)
-    parser.add_argument("--max-grasp-obj-dist", type=float, default=0.045)
-    parser.add_argument("--max-grasp-object-gap", type=float, default=0.020)
+    parser.add_argument("--max-pre-action-l2", type=float, default=0.090)
+    parser.add_argument("--max-pre-ee-l2", type=float, default=0.014)
+    parser.add_argument("--max-pre-object-l2", type=float, default=0.015)
+    parser.add_argument("--max-branch-image-mse", type=float, default=360.0)
+    parser.add_argument("--max-branch-ee-l2", type=float, default=0.024)
+    parser.add_argument("--max-branch-object-l2", type=float, default=0.015)
+    parser.add_argument("--max-grasp-step-diff", type=float, default=2.0)
+    parser.add_argument("--max-grasp-obj-dist", type=float, default=0.042)
+    parser.add_argument("--max-grasp-object-gap", type=float, default=0.015)
     args = parser.parse_args()
 
     if not args.bddl_file.exists():

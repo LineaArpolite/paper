@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Tuple
@@ -78,20 +80,45 @@ def _save_mp4(frames, out_path: Path, fps: int) -> None:
     if w % 2 != 0:
         w -= 1
 
+    tmp_mp4v_path = out_path.with_suffix(".tmp_mp4v.mp4")
     writer = cv2.VideoWriter(
-        str(out_path),
+        str(tmp_mp4v_path),
         cv2.VideoWriter_fourcc(*"mp4v"),
         float(max(1, fps)),
         (w, h),
     )
     if not writer.isOpened():
-        raise RuntimeError(f"Failed to open video writer for: {out_path}")
+        raise RuntimeError(f"Failed to open video writer for: {tmp_mp4v_path}")
 
     for frame in frames:
         rgb = np.asarray(frame, dtype=np.uint8)
         rgb = rgb[:h, :w, :3]
         writer.write(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
     writer.release()
+
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if ffmpeg_bin:
+        cmd = [
+            ffmpeg_bin,
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(tmp_mp4v_path),
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(out_path),
+        ]
+        ret = subprocess.run(cmd, check=False)
+        if ret.returncode == 0:
+            tmp_mp4v_path.unlink(missing_ok=True)
+            return
+
+    tmp_mp4v_path.replace(out_path)
 
 
 def _effective_fps(
