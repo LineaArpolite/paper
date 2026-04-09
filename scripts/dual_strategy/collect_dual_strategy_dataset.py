@@ -274,16 +274,23 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
         live_obj = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
         live_ee = obs["robot0_eef_pos"].copy()
         grasp_delta = live_obj - live_ee
-        action[:2] = np.clip(
+        xy_cmd = np.clip(
             float(args.grasp_track_gain) * grasp_delta[:2],
             -float(args.grasp_track_max_xy),
             float(args.grasp_track_max_xy),
-        )
-        action[2] = np.clip(
+        ) * float(args.grasp_close_xy_scale)
+        z_cmd = np.clip(
             float(args.grasp_track_gain) * grasp_delta[2],
-            -float(args.grasp_track_max_z),
+            -float(args.grasp_close_max_down_z),
             float(args.grasp_track_max_z),
         )
+        z_cmd = np.clip(
+            z_cmd + float(args.grasp_close_upward_bias),
+            -float(args.grasp_close_max_down_z),
+            float(args.grasp_track_max_z),
+        )
+        action[:2] = xy_cmd
+        action[2] = z_cmd
         action[-1] = 1.0
         step_once(action)
         if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
@@ -619,6 +626,9 @@ def main() -> None:
     parser.add_argument("--grasp-track-gain", type=float, default=6.0)
     parser.add_argument("--grasp-track-max-xy", type=float, default=0.05)
     parser.add_argument("--grasp-track-max-z", type=float, default=0.02)
+    parser.add_argument("--grasp-close-xy-scale", type=float, default=0.18)
+    parser.add_argument("--grasp-close-max-down-z", type=float, default=0.0)
+    parser.add_argument("--grasp-close-upward-bias", type=float, default=0.010)
     parser.add_argument("--release-steps", type=int, default=8)
     parser.add_argument("--release-lift-start", type=int, default=4)
     parser.add_argument("--release-lift-z", type=float, default=0.16)
