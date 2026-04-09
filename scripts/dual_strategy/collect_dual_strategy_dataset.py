@@ -396,6 +396,16 @@ def _rollout_strategy(
         side_sign = -1.0 if strategy_label == "A" else 1.0
         side_offset = float(args.detour_side_offset)
         post_side_scale = float(args.detour_post_side_scale)
+        # Immediate lateral split right after branch to increase visible divergence angle.
+        for k in range(max(0, int(args.branch_kick_steps))):
+            mag = float(args.branch_kick_mag) * (float(args.branch_kick_decay) ** k)
+            back = float(args.branch_kick_back) * (float(args.branch_kick_decay) ** k)
+            action = np.zeros(env.action_dim, dtype=np.float32)
+            kick_xy = side_sign * perp_dir * mag - line_dir * back
+            action[:2] = kick_xy.astype(np.float32)
+            action[-1] = 1.0
+            step_once(action)
+
         along_vals = [
             float(args.detour_pre_along),
             float(args.detour_mid_along),
@@ -754,6 +764,30 @@ def main() -> None:
         type=float,
         default=1.0,
         help="Scale factor on side offset at the third waypoint (helps smooth re-entry).",
+    )
+    parser.add_argument(
+        "--branch-kick-steps",
+        type=int,
+        default=2,
+        help="Number of immediate lateral kick steps after branch to enlarge initial split angle.",
+    )
+    parser.add_argument(
+        "--branch-kick-mag",
+        type=float,
+        default=0.16,
+        help="Magnitude of each branch lateral kick action in xy.",
+    )
+    parser.add_argument(
+        "--branch-kick-back",
+        type=float,
+        default=0.08,
+        help="Backward (along centerline) component of branch kick to clear obstacle before splitting.",
+    )
+    parser.add_argument(
+        "--branch-kick-decay",
+        type=float,
+        default=0.85,
+        help="Decay factor applied to branch kick magnitude across kick steps.",
     )
     parser.add_argument("--fork-y-offset", type=float, default=-0.145)
     parser.add_argument("--side-x", type=float, default=0.125)
