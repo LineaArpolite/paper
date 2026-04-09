@@ -280,6 +280,7 @@ def _rollout_strategy(
             step_once(action)
 
     carry_z = float(args.carry_z)
+    branch_step = -1
 
     if not prefix_mode:
         object_pos0 = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
@@ -289,7 +290,7 @@ def _rollout_strategy(
         target_pos = target_pos0.copy()
         obstacle_pos = obstacle_pos0.copy()
 
-        # Shared pre-branch prefix: reach, grasp, lift, move to fork.
+        # Shared pre-branch prefix: reach, grasp, lift.
         goto(
             object_pos + np.array([0.0, 0.0, float(args.pregrasp_hover_z)]),
             -1.0,
@@ -352,6 +353,8 @@ def _rollout_strategy(
             max_speed=float(args.lift_max_speed),
             max_accel=float(args.lift_max_accel),
         )
+        if bool(args.branch_at_lift):
+            branch_step = len(recorder.actions) - 1
     else:
         object_pos0 = np.asarray(shared_prefix["object_pos0"], dtype=np.float32).copy()
         target_pos0 = np.asarray(shared_prefix["target_pos0"], dtype=np.float32).copy()
@@ -360,6 +363,8 @@ def _rollout_strategy(
         target_pos = target_pos0.copy()
         obstacle_pos = _obstacle_position(env)
         grasp_step = int(shared_prefix["grasp_step"])
+        if bool(args.branch_at_lift):
+            branch_step = int(shared_prefix["branch_step"])
 
     if bool(args.line_aligned_branch):
         obj_xy = object_pos0[:2].astype(np.float32)
@@ -380,15 +385,18 @@ def _rollout_strategy(
         perp_dir = np.asarray([-line_dir[1], line_dir[0]], dtype=np.float32)
 
         if not prefix_mode:
-            fork_xy = obstacle_pos[:2] - line_dir * float(args.fork_back_dist)
-            fork = np.asarray([fork_xy[0], fork_xy[1], carry_z], dtype=np.float32)
-            goto(
-                fork,
-                1.0,
-                max_speed=float(args.lift_max_speed),
-                max_accel=float(args.lift_max_accel),
-            )
-            branch_step = len(recorder.actions) - 1
+            if not bool(args.branch_at_lift):
+                fork_xy = obstacle_pos[:2] - line_dir * float(args.fork_back_dist)
+                fork = np.asarray([fork_xy[0], fork_xy[1], carry_z], dtype=np.float32)
+                goto(
+                    fork,
+                    1.0,
+                    max_speed=float(args.lift_max_speed),
+                    max_accel=float(args.lift_max_accel),
+                )
+                branch_step = len(recorder.actions) - 1
+            elif branch_step < 0:
+                branch_step = len(recorder.actions) - 1
         else:
             branch_step = int(shared_prefix["branch_step"])
 
@@ -396,7 +404,17 @@ def _rollout_strategy(
         side_sign = -1.0 if strategy_label == "A" else 1.0
         side_offset = float(args.detour_side_offset)
         post_side_scale = float(args.detour_post_side_scale)
-        # Immediate lateral split right after branch to increase visible divergence angle.
+        waypoints = []
+        if bool(args.branch_at_lift):
+            # Immediately split to opposite sides from the lifted branch point.
+            # This gives a larger and more natural visible branch angle.
+            branch_xy = obs["robot0_eef_pos"][:2].astype(np.float32)
+            split_xy = (
+                branch_xy
+                + line_dir * float(args.branch_split_forward)
+                + side_sign * perp_dir * float(args.branch_split_side)
+            )
+            waypoints.append(np.asarray([split_xy[0], split_xy[1], carry_z], dtype=np.float32))
         for k in range(max(0, int(args.branch_kick_steps))):
             mag = float(args.branch_kick_mag) * (float(args.branch_kick_decay) ** k)
             back = float(args.branch_kick_back) * (float(args.branch_kick_decay) ** k)
@@ -412,7 +430,6 @@ def _rollout_strategy(
             float(args.detour_post_along),
         ]
         side_scales = [1.0, 1.0, post_side_scale]
-        waypoints = []
         obstacle_now = _obstacle_position(env)
         for along, side_scale in zip(along_vals, side_scales):
             wp_xy = (
@@ -426,14 +443,17 @@ def _rollout_strategy(
         side_y_pre = float(args.side_y_pre_a) if strategy_label == "A" else float(args.side_y_pre_b)
         side_y_post = float(args.side_y_post)
         if not prefix_mode:
-            fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] + float(args.fork_y_offset), carry_z])
-            goto(
-                fork,
-                1.0,
-                max_speed=float(args.lift_max_speed),
-                max_accel=float(args.lift_max_accel),
-            )
-            branch_step = len(recorder.actions) - 1
+            if not bool(args.branch_at_lift):
+                fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] + float(args.fork_y_offset), carry_z])
+                goto(
+                    fork,
+                    1.0,
+                    max_speed=float(args.lift_max_speed),
+                    max_accel=float(args.lift_max_accel),
+                )
+                branch_step = len(recorder.actions) - 1
+            elif branch_step < 0:
+                branch_step = len(recorder.actions) - 1
         else:
             branch_step = int(shared_prefix["branch_step"])
 
@@ -724,6 +744,12 @@ def main() -> None:
     )
     parser.add_argument("--carry-z", type=float, default=0.218)
     parser.add_argument(
+        "--branch-at-lift",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Set branch point right after grasp+lift, so left/right detour diverges immediately from the lifted pose.",
+    )
+    parser.add_argument(
         "--line-aligned-branch",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -768,7 +794,7 @@ def main() -> None:
     parser.add_argument(
         "--branch-kick-steps",
         type=int,
-        default=2,
+        default=0,
         help="Number of immediate lateral kick steps after branch to enlarge initial split angle.",
     )
     parser.add_argument(
@@ -788,6 +814,18 @@ def main() -> None:
         type=float,
         default=0.85,
         help="Decay factor applied to branch kick magnitude across kick steps.",
+    )
+    parser.add_argument(
+        "--branch-split-forward",
+        type=float,
+        default=0.03,
+        help="Forward offset (along centerline) for the first split waypoint when --branch-at-lift is enabled.",
+    )
+    parser.add_argument(
+        "--branch-split-side",
+        type=float,
+        default=0.12,
+        help="Lateral offset for the first split waypoint when --branch-at-lift is enabled.",
     )
     parser.add_argument("--fork-y-offset", type=float, default=-0.145)
     parser.add_argument("--side-x", type=float, default=0.125)
