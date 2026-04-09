@@ -5,7 +5,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import h5py
 import numpy as np
@@ -46,6 +46,9 @@ class RolloutResult:
     object_pos: np.ndarray
     obstacle_pos: np.ndarray
     obstacle_bbox_xy: np.ndarray
+    object_pos0: np.ndarray
+    target_pos0: np.ndarray
+    obstacle_pos0: np.ndarray
 
 
 class Recorder:
@@ -170,17 +173,50 @@ def _infer_target_container_name(bddl_file: Path) -> str:
     raise RuntimeError(f"Could not infer target container name from BDDL: {bddl_file}")
 
 
-def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argparse.Namespace) -> RolloutResult:
+def _rollout_strategy(
+    env,
+    snapshot: np.ndarray,
+    strategy_label: str,
+    args: argparse.Namespace,
+    shared_prefix: Optional[Dict] = None,
+) -> RolloutResult:
     assert strategy_label in ["A", "B"]
 
     obstacle_ids, robot_ids, object_ids = _collision_id_sets(env)
     obstacle_bbox_xy = _obstacle_bbox_xy(env)
-    obs = _reset_to_snapshot(env, snapshot)
+    prefix_mode = shared_prefix is not None
+
+    if not prefix_mode:
+        obs = _reset_to_snapshot(env, snapshot)
+    else:
+        obs = _reset_to_snapshot(env, np.asarray(shared_prefix["branch_snapshot"], dtype=np.float64))
 
     recorder = Recorder()
-    collision_steps: List[int] = []
-    collision_flag = False
-    last_xyz_cmd = np.zeros(3, dtype=np.float32)
+    if not prefix_mode:
+        collision_steps: List[int] = []
+        collision_flag = False
+        last_xyz_cmd = np.zeros(3, dtype=np.float32)
+    else:
+        prefix_actions = np.asarray(shared_prefix["actions"], dtype=np.float32)
+        prefix_states = np.asarray(shared_prefix["states"], dtype=np.float64)
+        prefix_agent = np.asarray(shared_prefix["agentview_rgb"], dtype=np.uint8)
+        prefix_eye = np.asarray(shared_prefix["eye_in_hand_rgb"], dtype=np.uint8)
+        prefix_ee = np.asarray(shared_prefix["ee_pos"], dtype=np.float32)
+        prefix_obj = np.asarray(shared_prefix["object_pos"], dtype=np.float32)
+        prefix_obs = np.asarray(shared_prefix["obstacle_pos"], dtype=np.float32)
+        recorder.actions = [x.copy() for x in prefix_actions]
+        recorder.states = [x.copy() for x in prefix_states]
+        recorder.agentview = [x.copy() for x in prefix_agent]
+        recorder.eye = [x.copy() for x in prefix_eye]
+        recorder.ee = [x.copy() for x in prefix_ee]
+        recorder.obj = [x.copy() for x in prefix_obj]
+        recorder.obstacle = [x.copy() for x in prefix_obs]
+        collision_steps = [int(x) for x in shared_prefix.get("collision_steps", [])]
+        collision_flag = bool(shared_prefix.get("collision_flag", False))
+        if len(recorder.actions) > 0:
+            last_xyz_cmd = np.asarray(recorder.actions[-1][:3], dtype=np.float32).copy()
+        else:
+            last_xyz_cmd = np.zeros(3, dtype=np.float32)
 
     target_obj = [o for o in env.objects if o.name == TARGET_OBJECT_NAME][0]
 
@@ -244,86 +280,161 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
             step_once(action)
 
     carry_z = float(args.carry_z)
-    side_x = float(args.side_x)
-    side_y_pre = float(args.side_y_pre_a) if strategy_label == "A" else float(args.side_y_pre_b)
-    side_y_post = float(args.side_y_post)
 
-    object_pos = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
-    target_pos = obs[f"{TARGET_CONTAINER_NAME}_pos"].copy()
-    obstacle_pos = _obstacle_position(env)
+    if not prefix_mode:
+        object_pos0 = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+        target_pos0 = obs[f"{TARGET_CONTAINER_NAME}_pos"].copy()
+        obstacle_pos0 = _obstacle_position(env)
+        object_pos = object_pos0.copy()
+        target_pos = target_pos0.copy()
+        obstacle_pos = obstacle_pos0.copy()
 
-    # Shared pre-branch prefix: reach, grasp, lift, move to fork.
-    goto(
-        object_pos + np.array([0.0, 0.0, float(args.pregrasp_hover_z)]),
-        -1.0,
-        max_speed=float(args.approach_max_speed),
-        max_accel=float(args.approach_max_accel),
-    )
-    goto(
-        object_pos + np.array([0.0, 0.0, float(args.pregrasp_touch_z)]),
-        -1.0,
-        tol=float(args.touch_goto_tol),
-        max_steps=int(args.touch_goto_max_steps),
-        max_speed=float(args.touch_max_speed),
-        max_accel=float(args.touch_max_accel),
-    )
-
-    grasp_step = -1
-    for i in range(int(args.grasp_close_steps)):
-        action = np.zeros(env.action_dim, dtype=np.float32)
-        live_obj = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
-        live_ee = obs["robot0_eef_pos"].copy()
-        grasp_delta = live_obj - live_ee
-        xy_cmd = np.clip(
-            float(args.grasp_track_gain) * grasp_delta[:2],
-            -float(args.grasp_track_max_xy),
-            float(args.grasp_track_max_xy),
-        ) * float(args.grasp_close_xy_scale)
-        z_cmd = np.clip(
-            float(args.grasp_track_gain) * grasp_delta[2],
-            -float(args.grasp_close_max_down_z),
-            float(args.grasp_track_max_z),
+        # Shared pre-branch prefix: reach, grasp, lift, move to fork.
+        goto(
+            object_pos + np.array([0.0, 0.0, float(args.pregrasp_hover_z)]),
+            -1.0,
+            max_speed=float(args.approach_max_speed),
+            max_accel=float(args.approach_max_accel),
         )
-        z_cmd = np.clip(
-            z_cmd + float(args.grasp_close_upward_bias),
-            -float(args.grasp_close_max_down_z),
-            float(args.grasp_track_max_z),
+        goto(
+            object_pos + np.array([0.0, 0.0, float(args.pregrasp_touch_z)]),
+            -1.0,
+            tol=float(args.touch_goto_tol),
+            max_steps=int(args.touch_goto_max_steps),
+            max_speed=float(args.touch_max_speed),
+            max_accel=float(args.touch_max_accel),
         )
-        action[:2] = xy_cmd
-        action[2] = z_cmd
-        action[-1] = 1.0
-        step_once(action)
-        if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
-            if grasp_step < 0:
-                grasp_step = len(recorder.actions) - 1
-            if i >= int(args.grasp_min_settle_steps):
-                if int(args.grasp_hold_steps) > 0:
-                    hold(1.0, int(args.grasp_hold_steps))
-                break
 
-    goto(
-        np.array([object_pos[0], object_pos[1], carry_z]),
-        1.0,
-        max_speed=float(args.lift_max_speed),
-        max_accel=float(args.lift_max_accel),
-    )
-    fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] + float(args.fork_y_offset), carry_z])
-    goto(
-        fork,
-        1.0,
-        max_speed=float(args.lift_max_speed),
-        max_accel=float(args.lift_max_accel),
-    )
-    branch_step = len(recorder.actions) - 1
+        # Slightly lift while keeping the gripper open right before close,
+        # reducing visual "pressing" on the object at contact.
+        for _ in range(max(0, int(args.pre_close_up_steps))):
+            action = np.zeros(env.action_dim, dtype=np.float32)
+            action[2] = float(args.pre_close_up_z)
+            action[-1] = -1.0
+            step_once(action)
 
-    # Divergence: left vs right route around the obstacle.
-    side_sign = -1.0 if strategy_label == "A" else 1.0
-    side_y_mid = 0.5 * (side_y_pre + side_y_post)
-    waypoints = [
-        np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_pre, carry_z]),
-        np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_mid, carry_z]),
-        np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_post, carry_z]),
-    ]
+        grasp_step = -1
+        for i in range(int(args.grasp_close_steps)):
+            action = np.zeros(env.action_dim, dtype=np.float32)
+            live_obj = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+            live_ee = obs["robot0_eef_pos"].copy()
+            grasp_delta = live_obj - live_ee
+            xy_cmd = np.clip(
+                float(args.grasp_track_gain) * grasp_delta[:2],
+                -float(args.grasp_track_max_xy),
+                float(args.grasp_track_max_xy),
+            ) * float(args.grasp_close_xy_scale)
+            z_cmd = np.clip(
+                float(args.grasp_track_gain) * grasp_delta[2],
+                -float(args.grasp_close_max_down_z),
+                float(args.grasp_track_max_z),
+            )
+            z_cmd = np.clip(
+                z_cmd + float(args.grasp_close_upward_bias),
+                -float(args.grasp_close_max_down_z),
+                float(args.grasp_track_max_z),
+            )
+            action[:2] = xy_cmd
+            action[2] = z_cmd
+            action[-1] = 1.0
+            step_once(action)
+            if env._check_grasp(env.robots[0].gripper, target_obj.contact_geoms):
+                if grasp_step < 0:
+                    grasp_step = len(recorder.actions) - 1
+                if i >= int(args.grasp_min_settle_steps):
+                    if int(args.grasp_hold_steps) > 0:
+                        hold(1.0, int(args.grasp_hold_steps))
+                    break
+
+        goto(
+            np.array([object_pos[0], object_pos[1], carry_z]),
+            1.0,
+            max_speed=float(args.lift_max_speed),
+            max_accel=float(args.lift_max_accel),
+        )
+    else:
+        object_pos0 = np.asarray(shared_prefix["object_pos0"], dtype=np.float32).copy()
+        target_pos0 = np.asarray(shared_prefix["target_pos0"], dtype=np.float32).copy()
+        obstacle_pos0 = np.asarray(shared_prefix["obstacle_pos0"], dtype=np.float32).copy()
+        object_pos = object_pos0.copy()
+        target_pos = target_pos0.copy()
+        obstacle_pos = _obstacle_position(env)
+        grasp_step = int(shared_prefix["grasp_step"])
+
+    if bool(args.line_aligned_branch):
+        obj_xy = object_pos0[:2].astype(np.float32)
+        target_xy = target_pos0[:2].astype(np.float32)
+        obstacle_xy0 = obstacle_pos0[:2].astype(np.float32)
+        pts = np.stack([obj_xy, obstacle_xy0, target_xy], axis=0).astype(np.float32)
+        pts_centered = pts - pts.mean(axis=0, keepdims=True)
+        _, _, vh = np.linalg.svd(pts_centered, full_matrices=False)
+        line_dir = vh[0].astype(np.float32)
+        if float(np.linalg.norm(line_dir)) < 1e-8:
+            line_dir = np.asarray([0.0, 1.0], dtype=np.float32)
+        else:
+            line_dir = line_dir / float(np.linalg.norm(line_dir))
+        # Keep direction roughly from object toward target for consistent sign.
+        if float(np.dot(line_dir, target_xy - obj_xy)) < 0.0:
+            line_dir = -line_dir
+        # 2D unit vector orthogonal to the three-point centerline (left/right detour axis).
+        perp_dir = np.asarray([-line_dir[1], line_dir[0]], dtype=np.float32)
+
+        if not prefix_mode:
+            fork_xy = obstacle_pos[:2] - line_dir * float(args.fork_back_dist)
+            fork = np.asarray([fork_xy[0], fork_xy[1], carry_z], dtype=np.float32)
+            goto(
+                fork,
+                1.0,
+                max_speed=float(args.lift_max_speed),
+                max_accel=float(args.lift_max_accel),
+            )
+            branch_step = len(recorder.actions) - 1
+        else:
+            branch_step = int(shared_prefix["branch_step"])
+
+        # Divergence: two opposite-side routes around the obstacle in the line frame.
+        side_sign = -1.0 if strategy_label == "A" else 1.0
+        side_offset = float(args.detour_side_offset)
+        post_side_scale = float(args.detour_post_side_scale)
+        along_vals = [
+            float(args.detour_pre_along),
+            float(args.detour_mid_along),
+            float(args.detour_post_along),
+        ]
+        side_scales = [1.0, 1.0, post_side_scale]
+        waypoints = []
+        obstacle_now = _obstacle_position(env)
+        for along, side_scale in zip(along_vals, side_scales):
+            wp_xy = (
+                obstacle_now[:2]
+                + line_dir * along
+                + side_sign * perp_dir * (side_offset * side_scale)
+            )
+            waypoints.append(np.asarray([wp_xy[0], wp_xy[1], carry_z], dtype=np.float32))
+    else:
+        side_x = float(args.side_x)
+        side_y_pre = float(args.side_y_pre_a) if strategy_label == "A" else float(args.side_y_pre_b)
+        side_y_post = float(args.side_y_post)
+        if not prefix_mode:
+            fork = np.array([obstacle_pos[0] - 0.02, obstacle_pos[1] + float(args.fork_y_offset), carry_z])
+            goto(
+                fork,
+                1.0,
+                max_speed=float(args.lift_max_speed),
+                max_accel=float(args.lift_max_accel),
+            )
+            branch_step = len(recorder.actions) - 1
+        else:
+            branch_step = int(shared_prefix["branch_step"])
+
+        side_sign = -1.0 if strategy_label == "A" else 1.0
+        side_y_mid = 0.5 * (side_y_pre + side_y_post)
+        waypoints = [
+            np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_pre, carry_z]),
+            np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_mid, carry_z]),
+            np.array([obstacle_pos[0] + side_sign * side_x, obstacle_pos[1] + side_y_post, carry_z]),
+        ]
+
     for waypoint in waypoints:
         goto(
             waypoint,
@@ -392,6 +503,9 @@ def _rollout_strategy(env, snapshot: np.ndarray, strategy_label: str, args: argp
         object_pos=object_pos_seq,
         obstacle_pos=obstacle_pos_seq,
         obstacle_bbox_xy=obstacle_bbox_xy,
+        object_pos0=np.asarray(object_pos0, dtype=np.float32).copy(),
+        target_pos0=np.asarray(target_pos0, dtype=np.float32).copy(),
+        obstacle_pos0=np.asarray(obstacle_pos0, dtype=np.float32).copy(),
     )
 
 
@@ -443,6 +557,9 @@ def _save_rollout_hdf5(
         ep.attrs["target_container_name"] = TARGET_CONTAINER_NAME
         ep.attrs["obstacle_name"] = OBSTACLE_NAME
         ep.attrs["obstacle_bbox_xy_json"] = json.dumps(result.obstacle_bbox_xy.tolist())
+        ep.attrs["object_pos0_json"] = json.dumps(result.object_pos0.tolist())
+        ep.attrs["target_pos0_json"] = json.dumps(result.target_pos0.tolist())
+        ep.attrs["obstacle_pos0_json"] = json.dumps(result.obstacle_pos0.tolist())
 
         grp.attrs["instruction"] = instruction
         grp.attrs["group_id"] = int(group_id)
@@ -482,6 +599,9 @@ def _save_metadata_json(
             "target_container_name": TARGET_CONTAINER_NAME,
             "obstacle_name": OBSTACLE_NAME,
             "obstacle_bbox_xy": result.obstacle_bbox_xy.tolist(),
+            "object_pos0": result.object_pos0.tolist(),
+            "target_pos0": result.target_pos0.tolist(),
+            "obstacle_pos0": result.obstacle_pos0.tolist(),
         },
         "trajectory_length": int(len(result.actions)),
         "key_steps": {
@@ -525,6 +645,7 @@ def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float
     branch_image_mse = float(np.mean((img_a - img_b) ** 2))
     branch_ee_l2 = float(np.linalg.norm(a.ee_pos[ia] - b.ee_pos[ib]))
     branch_object_l2 = float(np.linalg.norm(a.object_pos[ia] - b.object_pos[ib]))
+    branch_step_diff = float(abs(int(a.branch_step) - int(b.branch_step)))
 
     ga = int(np.clip(a.grasp_step, 0, len(a.ee_pos) - 1))
     gb = int(np.clip(b.grasp_step, 0, len(b.ee_pos) - 1))
@@ -541,6 +662,7 @@ def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float
         "branch_image_mse": branch_image_mse,
         "branch_ee_l2": branch_ee_l2,
         "branch_object_l2": branch_object_l2,
+        "branch_step_diff": branch_step_diff,
         "grasp_step_diff": grasp_step_diff,
         "grasp_obj_dist_max": grasp_obj_dist_max,
         "grasp_object_gap": grasp_object_gap,
@@ -557,6 +679,7 @@ def _pair_quality_ok(metrics: Dict[str, float], args: argparse.Namespace) -> Tup
         ("branch_image_mse", float(args.max_branch_image_mse)),
         ("branch_ee_l2", float(args.max_branch_ee_l2)),
         ("branch_object_l2", float(args.max_branch_object_l2)),
+        ("branch_step_diff", float(args.max_branch_step_diff)),
         ("grasp_step_diff", float(args.max_grasp_step_diff)),
         ("grasp_obj_dist_max", float(args.max_grasp_obj_dist)),
         ("grasp_object_gap", float(args.max_grasp_object_gap)),
@@ -590,6 +713,48 @@ def main() -> None:
         default="6,7,8,9,16,21,23,25,33",
     )
     parser.add_argument("--carry-z", type=float, default=0.218)
+    parser.add_argument(
+        "--line-aligned-branch",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Define fork/route in the object->target line frame for tighter pre-branch consistency.",
+    )
+    parser.add_argument(
+        "--fork-back-dist",
+        type=float,
+        default=0.18,
+        help="Distance from obstacle center to fork point, measured backward along object->target line.",
+    )
+    parser.add_argument(
+        "--detour-pre-along",
+        type=float,
+        default=-0.09,
+        help="Along-line offset (from obstacle center) for first detour waypoint.",
+    )
+    parser.add_argument(
+        "--detour-mid-along",
+        type=float,
+        default=0.02,
+        help="Along-line offset (from obstacle center) for second detour waypoint.",
+    )
+    parser.add_argument(
+        "--detour-post-along",
+        type=float,
+        default=0.20,
+        help="Along-line offset (from obstacle center) for third detour waypoint.",
+    )
+    parser.add_argument(
+        "--detour-side-offset",
+        type=float,
+        default=0.22,
+        help="Lateral offset magnitude of detour waypoints from the object->target line.",
+    )
+    parser.add_argument(
+        "--detour-post-side-scale",
+        type=float,
+        default=1.0,
+        help="Scale factor on side offset at the third waypoint (helps smooth re-entry).",
+    )
     parser.add_argument("--fork-y-offset", type=float, default=-0.145)
     parser.add_argument("--side-x", type=float, default=0.125)
     parser.add_argument("--side-y-pre-a", type=float, default=-0.05)
@@ -618,6 +783,8 @@ def main() -> None:
     parser.add_argument("--retreat-max-accel", type=float, default=0.08)
     parser.add_argument("--pregrasp-hover-z", type=float, default=0.14)
     parser.add_argument("--pregrasp-touch-z", type=float, default=0.03)
+    parser.add_argument("--pre-close-up-steps", type=int, default=1)
+    parser.add_argument("--pre-close-up-z", type=float, default=0.008)
     parser.add_argument("--touch-goto-tol", type=float, default=0.028)
     parser.add_argument("--touch-goto-max-steps", type=int, default=60)
     parser.add_argument("--grasp-close-steps", type=int, default=16)
@@ -645,6 +812,7 @@ def main() -> None:
     parser.add_argument("--max-branch-image-mse", type=float, default=360.0)
     parser.add_argument("--max-branch-ee-l2", type=float, default=0.024)
     parser.add_argument("--max-branch-object-l2", type=float, default=0.015)
+    parser.add_argument("--max-branch-step-diff", type=float, default=1.0)
     parser.add_argument("--max-grasp-step-diff", type=float, default=2.0)
     parser.add_argument("--max-grasp-obj-dist", type=float, default=0.042)
     parser.add_argument("--max-grasp-object-gap", type=float, default=0.015)
@@ -680,7 +848,35 @@ def main() -> None:
         snapshot = env.sim.get_state().flatten().copy()
 
         result_a = _rollout_strategy(env, snapshot, "A", args)
-        result_b = _rollout_strategy(env, snapshot, "B", args)
+        if not result_a.success or int(result_a.branch_step) < 0 or int(result_a.grasp_step) < 0:
+            env.close()
+            print(
+                f"[skip] seed={seed} "
+                f"A(success={result_a.success}, collision={result_a.collision}) "
+                "B(not_run)"
+            )
+            continue
+
+        prefix_end = int(result_a.branch_step) + 1
+        prefix_collision_steps = [int(x) for x in result_a.collision_steps if int(x) < prefix_end]
+        shared_prefix = {
+            "branch_snapshot": result_a.states[int(result_a.branch_step)].copy(),
+            "actions": result_a.actions[:prefix_end].copy(),
+            "states": result_a.states[:prefix_end].copy(),
+            "agentview_rgb": result_a.agentview_rgb[:prefix_end].copy(),
+            "eye_in_hand_rgb": result_a.eye_in_hand_rgb[:prefix_end].copy(),
+            "ee_pos": result_a.ee_pos[:prefix_end].copy(),
+            "object_pos": result_a.object_pos[:prefix_end].copy(),
+            "obstacle_pos": result_a.obstacle_pos[:prefix_end].copy(),
+            "branch_step": int(result_a.branch_step),
+            "grasp_step": int(result_a.grasp_step),
+            "collision_steps": prefix_collision_steps,
+            "collision_flag": len(prefix_collision_steps) > 0,
+            "object_pos0": result_a.object_pos0.copy(),
+            "target_pos0": result_a.target_pos0.copy(),
+            "obstacle_pos0": result_a.obstacle_pos0.copy(),
+        }
+        result_b = _rollout_strategy(env, snapshot, "B", args, shared_prefix=shared_prefix)
         env.close()
 
         if not (result_a.success and result_b.success):

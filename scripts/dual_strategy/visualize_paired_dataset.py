@@ -432,8 +432,9 @@ def visualize_pair(
     axx.legend(ncol=5, fontsize=8)
     axx.grid(alpha=0.25)
 
-    a_xy = np.cumsum(a["actions"][:n, :2], axis=0)
-    b_xy = np.cumsum(b["actions"][:n, :2], axis=0)
+    # Use true EE top-down trajectory instead of integrated action commands.
+    a_xy = a["ee"][:n, :2].copy()
+    b_xy = b["ee"][:n, :2].copy()
     a_xy = a_xy - a_xy[0]
     b_xy = b_xy - b_xy[0]
     a_pre = a_xy[: branch + 1]
@@ -447,9 +448,9 @@ def visualize_pair(
     axy.plot(a_post[:, 0], a_post[:, 1], color="tab:blue", linestyle="--", linewidth=2.0, label="A post-branch")
     axy.plot(b_post[:, 0], b_post[:, 1], color="tab:orange", linestyle="--", linewidth=2.0, label="B post-branch")
     axy.scatter([a_xy[branch, 0]], [a_xy[branch, 1]], c="red", s=30, label="branch point")
-    axy.set_title("Integrated XY Action Path (qualitative trajectory contrast)")
-    axy.set_xlabel("integrated action x")
-    axy.set_ylabel("integrated action y")
+    axy.set_title("Top-Down EE Path (true trajectory, zero-referenced)")
+    axy.set_xlabel("ee x (relative)")
+    axy.set_ylabel("ee y (relative)")
     axy.legend(ncol=5, fontsize=8)
     axy.grid(alpha=0.25)
 
