@@ -41,7 +41,7 @@ def main() -> None:
     parser.add_argument(
         "--language",
         type=str,
-        default="pick up and move the object to the target area",
+        default="pick up the milk carton and place it into the wooden tray",
     )
     parser.add_argument("--container-name", type=str, default="wooden_tray_1")
     parser.add_argument("--container-type", type=str, default="wooden_tray")

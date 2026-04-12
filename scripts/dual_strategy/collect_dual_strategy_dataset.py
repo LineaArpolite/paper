@@ -102,12 +102,31 @@ def _build_env(bddl_file: Path):
     return env, problem_info
 
 
-def _reset_to_snapshot(env, snapshot: np.ndarray) -> Dict:
+def _set_entity_xyz(env, entity_name: str, xyz: np.ndarray) -> None:
+    body_id = env.sim.model.body_name2id(f"{entity_name}_main")
+    xyz = np.asarray(xyz, dtype=np.float64).reshape(3)
+    body_jntnum = int(env.sim.model.body_jntnum[body_id])
+    if body_jntnum > 0:
+        joint_id = int(env.sim.model.body_jntadr[body_id])
+        qpos_adr = int(env.sim.model.jnt_qposadr[joint_id])
+        env.sim.data.qpos[qpos_adr : qpos_adr + 3] = xyz
+    else:
+        env.sim.model.body_pos[body_id, :3] = xyz
+
+
+def _reset_to_snapshot(
+    env,
+    snapshot: np.ndarray,
+    obstacle_pos_override: Optional[np.ndarray] = None,
+) -> Dict:
     # Reset first so controllers / env internal caches are reinitialized.
     env.reset()
+    if obstacle_pos_override is not None:
+        obstacle_pos_override = np.asarray(obstacle_pos_override, dtype=np.float64).reshape(3)
+        _set_entity_xyz(env, OBSTACLE_NAME, obstacle_pos_override)
     env.sim.set_state_from_flattened(snapshot)
     env.sim.forward()
-    return env._get_observations()
+    return env._get_observations(force_update=True)
 
 
 def _collision_id_sets(env) -> Tuple[set, set, set]:
@@ -148,18 +167,41 @@ def _obstacle_position(env) -> np.ndarray:
     return env.sim.data.body_xpos[env.sim.model.body_name2id(f"{OBSTACLE_NAME}_main")].copy()
 
 
-def _obstacle_bbox_xy(env) -> np.ndarray:
+def _entity_bbox_xy(env, entity_name: str, collision_only: bool = True) -> np.ndarray:
     xs: List[float] = []
     ys: List[float] = []
     for i in range(env.sim.model.ngeom):
         name = env.sim.model.geom_id2name(i)
-        if not name or OBSTACLE_NAME not in name:
+        if not name or entity_name not in name:
             continue
+        if collision_only:
+            if int(env.sim.model.geom_contype[i]) == 0 and int(env.sim.model.geom_conaffinity[i]) == 0:
+                continue
         center = env.sim.data.geom_xpos[i]
         size = env.sim.model.geom_size[i]
         xs.extend([float(center[0] - size[0]), float(center[0] + size[0])])
         ys.extend([float(center[1] - size[1]), float(center[1] + size[1])])
+    if len(xs) == 0:
+        raise RuntimeError(f"No geoms found for entity: {entity_name}")
     return np.asarray([min(xs), max(xs), min(ys), max(ys)], dtype=np.float32)
+
+
+def _obstacle_bbox_xy(env) -> np.ndarray:
+    return _entity_bbox_xy(env, OBSTACLE_NAME, collision_only=True)
+
+
+def _bbox_half_extents_xy(bbox_xy: np.ndarray) -> np.ndarray:
+    bbox_xy = np.asarray(bbox_xy, dtype=np.float64).reshape(4)
+    return np.asarray(
+        [0.5 * (bbox_xy[1] - bbox_xy[0]), 0.5 * (bbox_xy[3] - bbox_xy[2])],
+        dtype=np.float64,
+    )
+
+
+def _line_support_half_extent(half_extents_xy: np.ndarray, line_dir_xy: np.ndarray) -> float:
+    h = np.asarray(half_extents_xy, dtype=np.float64).reshape(2)
+    u = np.asarray(line_dir_xy, dtype=np.float64).reshape(2)
+    return float(abs(u[0]) * h[0] + abs(u[1]) * h[1])
 
 
 def _infer_target_container_name(bddl_file: Path) -> str:
@@ -173,11 +215,130 @@ def _infer_target_container_name(bddl_file: Path) -> str:
     raise RuntimeError(f"Could not infer target container name from BDDL: {bddl_file}")
 
 
+def _apply_centerline_layout(
+    env,
+    obs: Dict,
+    args: argparse.Namespace,
+    seed: int,
+) -> Dict:
+    if not bool(args.enforce_initial_centerline):
+        return obs
+
+    object_pos = obs[f"{TARGET_OBJECT_NAME}_pos"].copy()
+    target_pos = obs[f"{TARGET_CONTAINER_NAME}_pos"].copy()
+    obstacle_pos = _obstacle_position(env)
+    obstacle_half_ext = _bbox_half_extents_xy(_entity_bbox_xy(env, OBSTACLE_NAME, collision_only=True))
+    target_half_ext = _bbox_half_extents_xy(_entity_bbox_xy(env, TARGET_CONTAINER_NAME, collision_only=True))
+
+    rng = np.random.default_rng(int(seed) + int(args.layout_seed_offset))
+    min_angle = np.deg2rad(float(args.layout_min_angle_deg))
+    max_angle = np.deg2rad(float(args.layout_max_angle_deg))
+    if max_angle < min_angle:
+        max_angle = min_angle
+
+    xmin = float(args.layout_x_min)
+    xmax = float(args.layout_x_max)
+    ymin = float(args.layout_y_min)
+    ymax = float(args.layout_y_max)
+    y_margin = float(args.layout_y_margin)
+
+    chosen = None
+    for _ in range(max(1, int(args.layout_sample_tries))):
+        theta = float(rng.uniform(min_angle, max_angle))
+        line_dir = np.asarray([np.cos(theta), np.sin(theta)], dtype=np.float64)
+        line_dir /= max(1e-9, float(np.linalg.norm(line_dir)))
+
+        obstacle_xy = obstacle_pos[:2].astype(np.float64).copy()
+        obstacle_xy += rng.uniform(
+            low=np.asarray(
+                [-float(args.layout_obstacle_jitter_x), -float(args.layout_obstacle_jitter_y)],
+                dtype=np.float64,
+            ),
+            high=np.asarray(
+                [float(args.layout_obstacle_jitter_x), float(args.layout_obstacle_jitter_y)],
+                dtype=np.float64,
+            ),
+        )
+
+        d_obj_obs = float(args.layout_obj_obstacle_dist) + float(
+            rng.uniform(-float(args.layout_obj_obstacle_jitter), float(args.layout_obj_obstacle_jitter))
+        )
+        d_obs_tgt = float(args.layout_obstacle_target_dist) + float(
+            rng.uniform(-float(args.layout_obstacle_target_jitter), float(args.layout_obstacle_target_jitter))
+        )
+        d_obj_obs = max(float(args.layout_obj_obstacle_min), d_obj_obs)
+        d_obs_tgt = max(float(args.layout_obstacle_target_min), d_obs_tgt)
+        if bool(args.layout_enforce_obstacle_target_clearance):
+            required_obs_tgt = (
+                _line_support_half_extent(obstacle_half_ext, line_dir)
+                + _line_support_half_extent(target_half_ext, line_dir)
+                + float(args.layout_obstacle_target_clearance)
+            )
+            d_obs_tgt = max(d_obs_tgt, required_obs_tgt)
+
+        object_xy = obstacle_xy - line_dir * d_obj_obs
+        target_xy = obstacle_xy + line_dir * d_obs_tgt
+
+        in_bounds = (
+            xmin <= object_xy[0] <= xmax
+            and xmin <= obstacle_xy[0] <= xmax
+            and xmin <= target_xy[0] <= xmax
+            and ymin <= object_xy[1] <= ymax
+            and ymin <= obstacle_xy[1] <= ymax
+            and ymin <= target_xy[1] <= ymax
+        )
+        if bool(args.layout_require_y_order):
+            y_order_ok = (object_xy[1] + y_margin <= obstacle_xy[1]) and (obstacle_xy[1] + y_margin <= target_xy[1])
+        else:
+            y_order_ok = True
+        if in_bounds and y_order_ok:
+            chosen = (object_xy, obstacle_xy, target_xy)
+            break
+
+    if chosen is None:
+        theta = float(max_angle)
+        line_dir = np.asarray([np.cos(theta), np.sin(theta)], dtype=np.float64)
+        line_dir /= max(1e-9, float(np.linalg.norm(line_dir)))
+        obstacle_xy = obstacle_pos[:2].astype(np.float64).copy()
+        d_obj_obs = max(float(args.layout_obj_obstacle_min), float(args.layout_obj_obstacle_dist))
+        d_obs_tgt = max(float(args.layout_obstacle_target_min), float(args.layout_obstacle_target_dist))
+        if bool(args.layout_enforce_obstacle_target_clearance):
+            required_obs_tgt = (
+                _line_support_half_extent(obstacle_half_ext, line_dir)
+                + _line_support_half_extent(target_half_ext, line_dir)
+                + float(args.layout_obstacle_target_clearance)
+            )
+            d_obs_tgt = max(d_obs_tgt, required_obs_tgt)
+        object_xy = obstacle_xy - line_dir * d_obj_obs
+        target_xy = obstacle_xy + line_dir * d_obs_tgt
+        chosen = (object_xy, obstacle_xy, target_xy)
+
+    object_xy, obstacle_xy, target_xy = chosen
+    _set_entity_xyz(
+        env,
+        OBSTACLE_NAME,
+        np.asarray([obstacle_xy[0], obstacle_xy[1], float(obstacle_pos[2])], dtype=np.float64),
+    )
+    _set_entity_xyz(
+        env,
+        TARGET_OBJECT_NAME,
+        np.asarray([object_xy[0], object_xy[1], float(object_pos[2])], dtype=np.float64),
+    )
+    _set_entity_xyz(
+        env,
+        TARGET_CONTAINER_NAME,
+        np.asarray([target_xy[0], target_xy[1], float(target_pos[2])], dtype=np.float64),
+    )
+    env.sim.forward()
+    return env._get_observations(force_update=True)
+
+
 def _rollout_strategy(
     env,
     snapshot: np.ndarray,
     strategy_label: str,
     args: argparse.Namespace,
+    snapshot_obstacle_pos: Optional[np.ndarray] = None,
     shared_prefix: Optional[Dict] = None,
 ) -> RolloutResult:
     assert strategy_label in ["A", "B"]
@@ -187,9 +348,13 @@ def _rollout_strategy(
     prefix_mode = shared_prefix is not None
 
     if not prefix_mode:
-        obs = _reset_to_snapshot(env, snapshot)
+        obs = _reset_to_snapshot(env, snapshot, obstacle_pos_override=snapshot_obstacle_pos)
     else:
-        obs = _reset_to_snapshot(env, np.asarray(shared_prefix["branch_snapshot"], dtype=np.float64))
+        obs = _reset_to_snapshot(
+            env,
+            np.asarray(shared_prefix["branch_snapshot"], dtype=np.float64),
+            obstacle_pos_override=np.asarray(shared_prefix["obstacle_pos0"], dtype=np.float64),
+        )
 
     recorder = Recorder()
     if not prefix_mode:
@@ -251,6 +416,7 @@ def _rollout_strategy(
             max_accel = float(args.goto_max_accel)
         prev_dist = 1e9
         near_stable_steps = 0
+        stall_steps = 0
         for _ in range(max_steps):
             delta = target_pos - obs["robot0_eef_pos"]
             dist = float(np.linalg.norm(delta))
@@ -264,14 +430,34 @@ def _rollout_strategy(
             cmd_delta = np.clip(cmd - last_xyz_cmd, -max_accel, max_accel)
             action[:3] = last_xyz_cmd + cmd_delta
             action[-1] = gripper_cmd
+            ee_before = obs["robot0_eef_pos"].copy()
+            dist_before = dist
             step_once(action)
-            if abs(prev_dist - dist) < float(args.goto_stable_delta) and dist < (tol * float(args.goto_stable_factor)):
+            dist_after = float(np.linalg.norm(target_pos - obs["robot0_eef_pos"]))
+            ee_move = float(np.linalg.norm(obs["robot0_eef_pos"] - ee_before))
+            progress = float(dist_before - dist_after)
+
+            if (
+                ee_move < float(args.goto_stall_ee_delta)
+                and progress < float(args.goto_stall_dist_delta)
+                and dist_after > (tol * float(args.goto_stall_dist_factor))
+            ):
+                stall_steps += 1
+                if stall_steps >= int(args.goto_stall_steps):
+                    break
+            else:
+                stall_steps = 0
+
+            if (
+                abs(prev_dist - dist_after) < float(args.goto_stable_delta)
+                and dist_after < (tol * float(args.goto_stable_factor))
+            ):
                 near_stable_steps += 1
                 if near_stable_steps >= int(args.goto_stable_steps):
                     break
             else:
                 near_stable_steps = 0
-            prev_dist = dist
+            prev_dist = dist_after
 
     def hold(gripper_cmd: float, steps: int) -> None:
         for _ in range(steps):
@@ -479,9 +665,15 @@ def _rollout_strategy(
         max_speed=float(args.place_max_speed),
         max_accel=float(args.place_max_accel),
     )
+    place_descend_z = max(
+        float(target_pos[2] + float(args.place_descend_z_offset)),
+        float(carry_z - float(args.place_descend_max_drop)),
+    )
     goto(
-        np.array([target_pos[0], target_pos[1], target_pos[2] + 0.10]),
+        np.array([target_pos[0], target_pos[1], place_descend_z]),
         1.0,
+        tol=float(args.place_descend_tol),
+        max_steps=int(args.place_descend_max_steps),
         max_speed=float(args.place_max_speed),
         max_accel=float(args.place_max_accel),
     )
@@ -658,7 +850,23 @@ def _parse_seeds(text: str) -> List[int]:
     return values
 
 
-def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float]:
+def _longest_static_run(ee_pos: np.ndarray, eps: float) -> int:
+    if len(ee_pos) <= 1:
+        return 0
+    deltas = np.linalg.norm(np.diff(ee_pos, axis=0), axis=1)
+    longest = 0
+    cur = 0
+    for v in deltas:
+        if float(v) < float(eps):
+            cur += 1
+            if cur > longest:
+                longest = cur
+        else:
+            cur = 0
+    return int(longest)
+
+
+def _pair_quality_metrics(a: RolloutResult, b: RolloutResult, args: argparse.Namespace) -> Dict[str, float]:
     bstep = int(min(a.branch_step, b.branch_step, len(a.actions) - 1, len(b.actions) - 1))
     pre_n = int(min(max(2, bstep), len(a.actions), len(b.actions)))
     if pre_n <= 0:
@@ -685,6 +893,15 @@ def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float
     grasp_obj_dist_max = float(max(a_grasp_obj_dist, b_grasp_obj_dist))
     grasp_object_gap = float(np.linalg.norm(a.object_pos[ga] - b.object_pos[gb]))
 
+    ee_static_eps = float(args.ee_static_eps)
+    a_static_steps = int(np.sum(np.linalg.norm(np.diff(a.ee_pos, axis=0), axis=1) < ee_static_eps))
+    b_static_steps = int(np.sum(np.linalg.norm(np.diff(b.ee_pos, axis=0), axis=1) < ee_static_eps))
+    a_static_run = _longest_static_run(a.ee_pos, ee_static_eps)
+    b_static_run = _longest_static_run(b.ee_pos, ee_static_eps)
+    traj_steps_max = float(max(len(a.actions), len(b.actions)))
+    ee_static_steps_max = float(max(a_static_steps, b_static_steps))
+    ee_static_run_max = float(max(a_static_run, b_static_run))
+
     return {
         "pre_action_l2": pre_action_l2,
         "pre_ee_l2": pre_ee_l2,
@@ -698,6 +915,9 @@ def _pair_quality_metrics(a: RolloutResult, b: RolloutResult) -> Dict[str, float
         "grasp_object_gap": grasp_object_gap,
         "grasp_step_a": float(a.grasp_step),
         "grasp_step_b": float(b.grasp_step),
+        "traj_steps_max": traj_steps_max,
+        "ee_static_steps_max": ee_static_steps_max,
+        "ee_static_run_max": ee_static_run_max,
     }
 
 
@@ -713,6 +933,9 @@ def _pair_quality_ok(metrics: Dict[str, float], args: argparse.Namespace) -> Tup
         ("grasp_step_diff", float(args.max_grasp_step_diff)),
         ("grasp_obj_dist_max", float(args.max_grasp_obj_dist)),
         ("grasp_object_gap", float(args.max_grasp_object_gap)),
+        ("traj_steps_max", float(args.max_trajectory_steps)),
+        ("ee_static_steps_max", float(args.max_ee_static_steps)),
+        ("ee_static_run_max", float(args.max_ee_static_run)),
     ]
     for key, threshold in checks:
         value = float(metrics[key])
@@ -742,7 +965,48 @@ def main() -> None:
         type=str,
         default="6,7,8,9,16,21,23,25,33",
     )
-    parser.add_argument("--carry-z", type=float, default=0.218)
+    parser.add_argument(
+        "--enforce-initial-centerline",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Re-layout object, obstacle, and target so their centers are collinear at initialization.",
+    )
+    parser.add_argument("--layout-seed-offset", type=int, default=10007)
+    parser.add_argument("--layout-min-angle-deg", type=float, default=18.0)
+    parser.add_argument("--layout-max-angle-deg", type=float, default=45.0)
+    parser.add_argument("--layout-obj-obstacle-dist", type=float, default=0.165)
+    parser.add_argument("--layout-obstacle-target-dist", type=float, default=0.230)
+    parser.add_argument("--layout-obj-obstacle-jitter", type=float, default=0.008)
+    parser.add_argument("--layout-obstacle-target-jitter", type=float, default=0.008)
+    parser.add_argument("--layout-obj-obstacle-min", type=float, default=0.145)
+    parser.add_argument("--layout-obstacle-target-min", type=float, default=0.220)
+    parser.add_argument(
+        "--layout-enforce-obstacle-target-clearance",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Increase obstacle->target center distance using geometry extents so tray and obstacle do not overlap.",
+    )
+    parser.add_argument(
+        "--layout-obstacle-target-clearance",
+        type=float,
+        default=0.015,
+        help="Extra clearance (meters) added on top of obstacle/target projected half-extents.",
+    )
+    parser.add_argument("--layout-obstacle-jitter-x", type=float, default=0.012)
+    parser.add_argument("--layout-obstacle-jitter-y", type=float, default=0.012)
+    parser.add_argument("--layout-x-min", type=float, default=-0.24)
+    parser.add_argument("--layout-x-max", type=float, default=0.24)
+    parser.add_argument("--layout-y-min", type=float, default=-0.27)
+    parser.add_argument("--layout-y-max", type=float, default=0.27)
+    parser.add_argument(
+        "--layout-require-y-order",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Require object_y < obstacle_y < target_y in initial layout.",
+    )
+    parser.add_argument("--layout-y-margin", type=float, default=0.03)
+    parser.add_argument("--layout-sample-tries", type=int, default=96)
+    parser.add_argument("--carry-z", type=float, default=0.205)
     parser.add_argument(
         "--branch-at-lift",
         action=argparse.BooleanOptionalAction,
@@ -764,25 +1028,25 @@ def main() -> None:
     parser.add_argument(
         "--detour-pre-along",
         type=float,
-        default=-0.09,
+        default=-0.05,
         help="Along-line offset (from obstacle center) for first detour waypoint.",
     )
     parser.add_argument(
         "--detour-mid-along",
         type=float,
-        default=0.02,
+        default=0.00,
         help="Along-line offset (from obstacle center) for second detour waypoint.",
     )
     parser.add_argument(
         "--detour-post-along",
         type=float,
-        default=0.20,
+        default=0.11,
         help="Along-line offset (from obstacle center) for third detour waypoint.",
     )
     parser.add_argument(
         "--detour-side-offset",
         type=float,
-        default=0.22,
+        default=0.16,
         help="Lateral offset magnitude of detour waypoints from the object->target line.",
     )
     parser.add_argument(
@@ -818,13 +1082,13 @@ def main() -> None:
     parser.add_argument(
         "--branch-split-forward",
         type=float,
-        default=0.03,
+        default=0.02,
         help="Forward offset (along centerline) for the first split waypoint when --branch-at-lift is enabled.",
     )
     parser.add_argument(
         "--branch-split-side",
         type=float,
-        default=0.12,
+        default=0.105,
         help="Lateral offset for the first split waypoint when --branch-at-lift is enabled.",
     )
     parser.add_argument("--fork-y-offset", type=float, default=-0.145)
@@ -834,25 +1098,43 @@ def main() -> None:
     parser.add_argument("--side-y-post", type=float, default=0.16)
     parser.add_argument("--goto-gain", type=float, default=9.0)
     parser.add_argument("--goto-tol", type=float, default=0.01)
-    parser.add_argument("--goto-max-steps", type=int, default=160)
+    parser.add_argument("--goto-max-steps", type=int, default=100)
     parser.add_argument("--goto-max-speed", type=float, default=0.85)
     parser.add_argument("--goto-max-axis-speed", type=float, default=0.85)
     parser.add_argument("--goto-max-accel", type=float, default=0.22)
     parser.add_argument("--goto-stable-delta", type=float, default=3e-4)
     parser.add_argument("--goto-stable-factor", type=float, default=1.7)
     parser.add_argument("--goto-stable-steps", type=int, default=4)
-    parser.add_argument("--approach-max-speed", type=float, default=0.70)
-    parser.add_argument("--approach-max-accel", type=float, default=0.18)
-    parser.add_argument("--touch-max-speed", type=float, default=0.42)
-    parser.add_argument("--touch-max-accel", type=float, default=0.12)
-    parser.add_argument("--lift-max-speed", type=float, default=0.58)
-    parser.add_argument("--lift-max-accel", type=float, default=0.16)
-    parser.add_argument("--detour-max-speed", type=float, default=0.38)
-    parser.add_argument("--detour-max-accel", type=float, default=0.08)
-    parser.add_argument("--place-max-speed", type=float, default=0.48)
-    parser.add_argument("--place-max-accel", type=float, default=0.12)
-    parser.add_argument("--retreat-max-speed", type=float, default=0.38)
-    parser.add_argument("--retreat-max-accel", type=float, default=0.08)
+    parser.add_argument("--goto-stall-steps", type=int, default=10)
+    parser.add_argument("--goto-stall-ee-delta", type=float, default=8e-5)
+    parser.add_argument("--goto-stall-dist-delta", type=float, default=2.4e-4)
+    parser.add_argument("--goto-stall-dist-factor", type=float, default=1.8)
+    parser.add_argument("--approach-max-speed", type=float, default=0.78)
+    parser.add_argument("--approach-max-accel", type=float, default=0.22)
+    parser.add_argument("--touch-max-speed", type=float, default=0.55)
+    parser.add_argument("--touch-max-accel", type=float, default=0.16)
+    parser.add_argument("--lift-max-speed", type=float, default=0.72)
+    parser.add_argument("--lift-max-accel", type=float, default=0.22)
+    parser.add_argument("--detour-max-speed", type=float, default=0.62)
+    parser.add_argument("--detour-max-accel", type=float, default=0.16)
+    parser.add_argument("--place-max-speed", type=float, default=0.62)
+    parser.add_argument("--place-max-accel", type=float, default=0.16)
+    parser.add_argument(
+        "--place-descend-z-offset",
+        type=float,
+        default=0.12,
+        help="Desired EE z offset above target center during place descend (larger avoids tray pressing stalls).",
+    )
+    parser.add_argument(
+        "--place-descend-max-drop",
+        type=float,
+        default=0.05,
+        help="Upper bound on descend distance from carry_z during place (meters).",
+    )
+    parser.add_argument("--place-descend-max-steps", type=int, default=36)
+    parser.add_argument("--place-descend-tol", type=float, default=0.012)
+    parser.add_argument("--retreat-max-speed", type=float, default=0.52)
+    parser.add_argument("--retreat-max-accel", type=float, default=0.14)
     parser.add_argument("--pregrasp-hover-z", type=float, default=0.14)
     parser.add_argument("--pregrasp-touch-z", type=float, default=0.03)
     parser.add_argument("--pre-close-up-steps", type=int, default=1)
@@ -868,8 +1150,8 @@ def main() -> None:
     parser.add_argument("--grasp-close-xy-scale", type=float, default=0.18)
     parser.add_argument("--grasp-close-max-down-z", type=float, default=0.0)
     parser.add_argument("--grasp-close-upward-bias", type=float, default=0.010)
-    parser.add_argument("--release-steps", type=int, default=8)
-    parser.add_argument("--release-lift-start", type=int, default=4)
+    parser.add_argument("--release-steps", type=int, default=6)
+    parser.add_argument("--release-lift-start", type=int, default=3)
     parser.add_argument("--release-lift-z", type=float, default=0.16)
     parser.add_argument("--final-open-hold-steps", type=int, default=0)
     parser.add_argument(
@@ -888,6 +1170,10 @@ def main() -> None:
     parser.add_argument("--max-grasp-step-diff", type=float, default=2.0)
     parser.add_argument("--max-grasp-obj-dist", type=float, default=0.042)
     parser.add_argument("--max-grasp-object-gap", type=float, default=0.015)
+    parser.add_argument("--ee-static-eps", type=float, default=2e-4)
+    parser.add_argument("--max-trajectory-steps", type=float, default=380.0)
+    parser.add_argument("--max-ee-static-steps", type=float, default=60.0)
+    parser.add_argument("--max-ee-static-run", type=float, default=28.0)
     args = parser.parse_args()
 
     if not args.bddl_file.exists():
@@ -916,10 +1202,18 @@ def main() -> None:
 
         env, _ = _build_env(args.bddl_file)
         env.seed(seed)
-        env.reset()
+        obs0 = env.reset()
+        obs0 = _apply_centerline_layout(env, obs0, args, seed)
+        obstacle_pos_snapshot = _obstacle_position(env).copy()
         snapshot = env.sim.get_state().flatten().copy()
 
-        result_a = _rollout_strategy(env, snapshot, "A", args)
+        result_a = _rollout_strategy(
+            env,
+            snapshot,
+            "A",
+            args,
+            snapshot_obstacle_pos=obstacle_pos_snapshot,
+        )
         if not result_a.success or int(result_a.branch_step) < 0 or int(result_a.grasp_step) < 0:
             env.close()
             print(
@@ -958,7 +1252,7 @@ def main() -> None:
                 f"B(success={result_b.success}, collision={result_b.collision})"
             )
             continue
-        quality_metrics = _pair_quality_metrics(result_a, result_b)
+        quality_metrics = _pair_quality_metrics(result_a, result_b, args)
         if bool(args.enforce_pair_quality):
             ok, reason = _pair_quality_ok(quality_metrics, args)
             if not ok:

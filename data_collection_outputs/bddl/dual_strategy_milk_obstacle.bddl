@@ -1,6 +1,6 @@
 (define (problem LIBERO_Floor_Manipulation)
   (:domain robosuite)
-  (:language pick up and move the object to the target area)
+  (:language pick up the milk carton and place it into the wooden tray)
   (:regions
     (bin_region (:target floor) (:ranges ((-0.025 0.242 0.025 0.278))))
     (target_object_region (:target floor) (:ranges ((-0.16 -0.28 -0.08 -0.20))))
