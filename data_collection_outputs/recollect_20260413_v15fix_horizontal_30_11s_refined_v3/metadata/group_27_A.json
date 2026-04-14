@@ -1,0 +1,57 @@
+{
+  "group_id": 27,
+  "trajectory_id": "group_27_A",
+  "strategy_label": "A",
+  "instruction": "pick up the milk carton and place it into the wooden tray",
+  "random_seed": 8,
+  "environment_config": {
+    "bddl_file": "data_collection_outputs/bddl/dual_strategy_milk_obstacle.bddl",
+    "target_object_name": "milk_1",
+    "target_container_name": "wooden_tray_1",
+    "obstacle_name": "obstacle_1",
+    "obstacle_bbox_xy": [
+      -0.08605212718248367,
+      0.05464787408709526,
+      -0.09113070368766785,
+      0.025469299405813217
+    ],
+    "object_pos0": [
+      -0.1781878024339676,
+      -0.032830700278282166,
+      0.03500000014901161
+    ],
+    "target_pos0": [
+      0.2180628776550293,
+      -0.032830700278282166,
+      0.03500000014901161
+    ],
+    "obstacle_pos0": [
+      -0.015842124819755554,
+      -0.032830700278282166,
+      -6.938893903907228e-18
+    ]
+  },
+  "trajectory_length": 204,
+  "key_steps": {
+    "branch_step": 47,
+    "grasp_step": 31,
+    "place_step": 168
+  },
+  "status": {
+    "success": true,
+    "raw_success": true,
+    "collision": false,
+    "collision_steps": []
+  },
+  "selection_info": {
+    "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+    "source_group_id": 6,
+    "source_seed": 8,
+    "source_traj_steps_max": 204,
+    "source_len_diff": 4,
+    "source_tail_steps_max": 36,
+    "source_jump_ratio": 1.2501042562929345,
+    "source_overlap_area": 0.0,
+    "selection_score": 90.70312768878803
+  }
+}
