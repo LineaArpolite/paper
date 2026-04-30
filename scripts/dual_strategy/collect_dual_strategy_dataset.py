@@ -82,7 +82,7 @@ class Recorder:
         )
 
 
-def _build_env(bddl_file: Path):
+def _build_env(bddl_file: Path, *, camera_heights: int = 256, camera_widths: int = 256):
     problem_info = BDDLUtils.get_problem_info(str(bddl_file))
     controller = load_controller_config(default_controller="OSC_POSE")
     env = TASK_MAPPING[problem_info["problem_name"]](
@@ -93,8 +93,8 @@ def _build_env(bddl_file: Path):
         has_offscreen_renderer=True,
         use_camera_obs=True,
         camera_names=["agentview", "robot0_eye_in_hand"],
-        camera_heights=128,
-        camera_widths=128,
+        camera_heights=int(camera_heights),
+        camera_widths=int(camera_widths),
         ignore_done=True,
         reward_shaping=True,
         control_freq=20,
@@ -959,6 +959,8 @@ def main() -> None:
         type=Path,
         default=Path("data_collection_outputs"),
     )
+    parser.add_argument("--camera-heights", type=int, default=256)
+    parser.add_argument("--camera-widths", type=int, default=256)
     parser.add_argument("--num-groups", type=int, default=5)
     parser.add_argument(
         "--seed-candidates",
@@ -1200,7 +1202,11 @@ def main() -> None:
         if len(accepted) >= args.num_groups:
             break
 
-        env, _ = _build_env(args.bddl_file)
+        env, _ = _build_env(
+            args.bddl_file,
+            camera_heights=args.camera_heights,
+            camera_widths=args.camera_widths,
+        )
         env.seed(seed)
         obs0 = env.reset()
         obs0 = _apply_centerline_layout(env, obs0, args, seed)

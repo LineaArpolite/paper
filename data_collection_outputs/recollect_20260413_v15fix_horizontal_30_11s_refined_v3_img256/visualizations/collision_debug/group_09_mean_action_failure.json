@@ -1,0 +1,27 @@
+{
+  "group_id": 9,
+  "A_success": 1,
+  "B_success": 1,
+  "mean_success": 1,
+  "mean_collision": 1,
+  "mean_collision_steps": [
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    75,
+    80,
+    81,
+    100
+  ],
+  "num_steps_mean": 146,
+  "triplet_mp4": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/visualizations/collision_debug/group_09_mean_action_triplet.mp4"
+}

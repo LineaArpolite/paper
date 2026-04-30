@@ -1,0 +1,691 @@
+{
+  "num_groups": 30,
+  "instruction": "pick up the milk carton and place it into the wooden tray",
+  "bddl_file": "data_collection_outputs/bddl/dual_strategy_milk_obstacle.bddl",
+  "selection_rule": {
+    "roots": [
+      "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part3",
+      "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "data_collection_outputs/recollect_20260413_v16smooth_pool_part2"
+    ],
+    "traj_steps_max_range": [
+      140,
+      210
+    ],
+    "max_len_diff": 20,
+    "max_tail_steps": 40,
+    "max_jump_ratio": 1.32,
+    "require_overlap_area_zero": true,
+    "ranking_target_len": 180,
+    "ranking_terms": [
+      "abs(traj_steps_max-180)",
+      "len_diff",
+      "tail_steps_max",
+      "jump_ratio"
+    ]
+  },
+  "groups": [
+    {
+      "group_id": 1,
+      "seed": 61,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool_part2",
+      "source_group_id": 12,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_01_A.hdf5",
+        "num_steps": 190
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_01_B.hdf5",
+        "num_steps": 192
+      },
+      "quality": {
+        "traj_steps_max": 192.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 34.0,
+        "jump_ratio": 1.208502358570673,
+        "overlap_area": 0.0,
+        "selection_score": 64.05507075712019
+      }
+    },
+    {
+      "group_id": 2,
+      "seed": 51,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool_part2",
+      "source_group_id": 3,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_02_A.hdf5",
+        "num_steps": 188
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_02_B.hdf5",
+        "num_steps": 192
+      },
+      "quality": {
+        "traj_steps_max": 192.0,
+        "len_diff": 4.0,
+        "tail_steps_max": 35.0,
+        "jump_ratio": 1.1974088018457123,
+        "overlap_area": 0.0,
+        "selection_score": 70.0
+      }
+    },
+    {
+      "group_id": 3,
+      "seed": 20,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 15,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_03_A.hdf5",
+        "num_steps": 189
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_03_B.hdf5",
+        "num_steps": 193
+      },
+      "quality": {
+        "traj_steps_max": 193.0,
+        "len_diff": 4.0,
+        "tail_steps_max": 35.0,
+        "jump_ratio": 1.1144412313812981,
+        "overlap_area": 0.0,
+        "selection_score": 71.5
+      }
+    },
+    {
+      "group_id": 4,
+      "seed": 83,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool_part2",
+      "source_group_id": 22,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_04_A.hdf5",
+        "num_steps": 194
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_04_B.hdf5",
+        "num_steps": 189
+      },
+      "quality": {
+        "traj_steps_max": 194.0,
+        "len_diff": 5.0,
+        "tail_steps_max": 33.0,
+        "jump_ratio": 1.2357429401223974,
+        "overlap_area": 0.0,
+        "selection_score": 74.17228820367191
+      }
+    },
+    {
+      "group_id": 5,
+      "seed": 5,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "source_group_id": 3,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_05_A.hdf5",
+        "num_steps": 149
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_05_B.hdf5",
+        "num_steps": 148
+      },
+      "quality": {
+        "traj_steps_max": 149.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 23.0,
+        "jump_ratio": 1.26397713417439,
+        "overlap_area": 0.0,
+        "selection_score": 78.5193140252317
+      }
+    },
+    {
+      "group_id": 6,
+      "seed": 14,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "source_group_id": 9,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_06_A.hdf5",
+        "num_steps": 147
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_06_B.hdf5",
+        "num_steps": 147
+      },
+      "quality": {
+        "traj_steps_max": 147.0,
+        "len_diff": 0.0,
+        "tail_steps_max": 22.0,
+        "jump_ratio": 1.3099884138244366,
+        "overlap_area": 0.0,
+        "selection_score": 79.19965241473311
+      }
+    },
+    {
+      "group_id": 7,
+      "seed": 43,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 31,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_07_A.hdf5",
+        "num_steps": 203
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_07_B.hdf5",
+        "num_steps": 204
+      },
+      "quality": {
+        "traj_steps_max": 204.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 34.0,
+        "jump_ratio": 1.120232183908629,
+        "overlap_area": 0.0,
+        "selection_score": 79.3
+      }
+    },
+    {
+      "group_id": 8,
+      "seed": 34,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 24,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_08_A.hdf5",
+        "num_steps": 203
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_08_B.hdf5",
+        "num_steps": 201
+      },
+      "quality": {
+        "traj_steps_max": 203.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 34.0,
+        "jump_ratio": 1.113813944939096,
+        "overlap_area": 0.0,
+        "selection_score": 80.3
+      }
+    },
+    {
+      "group_id": 9,
+      "seed": 48,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 3,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_09_A.hdf5",
+        "num_steps": 146
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_09_B.hdf5",
+        "num_steps": 147
+      },
+      "quality": {
+        "traj_steps_max": 147.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 22.0,
+        "jump_ratio": 1.2668246450320917,
+        "overlap_area": 0.0,
+        "selection_score": 80.40473935096276
+      }
+    },
+    {
+      "group_id": 10,
+      "seed": 87,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part3",
+      "source_group_id": 3,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_10_A.hdf5",
+        "num_steps": 148
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_10_B.hdf5",
+        "num_steps": 149
+      },
+      "quality": {
+        "traj_steps_max": 149.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 24.0,
+        "jump_ratio": 1.2904965992711372,
+        "overlap_area": 0.0,
+        "selection_score": 80.51489797813412
+      }
+    },
+    {
+      "group_id": 11,
+      "seed": 49,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 4,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_11_A.hdf5",
+        "num_steps": 149
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_11_B.hdf5",
+        "num_steps": 147
+      },
+      "quality": {
+        "traj_steps_max": 149.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 23.0,
+        "jump_ratio": 1.26090898261675,
+        "overlap_area": 0.0,
+        "selection_score": 80.9272694785025
+      }
+    },
+    {
+      "group_id": 12,
+      "seed": 63,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 14,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_12_A.hdf5",
+        "num_steps": 145
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_12_B.hdf5",
+        "num_steps": 145
+      },
+      "quality": {
+        "traj_steps_max": 145.0,
+        "len_diff": 0.0,
+        "tail_steps_max": 21.0,
+        "jump_ratio": 1.3146940282029793,
+        "overlap_area": 0.0,
+        "selection_score": 81.14082084608938
+      }
+    },
+    {
+      "group_id": 13,
+      "seed": 80,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 29,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_13_A.hdf5",
+        "num_steps": 144
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_13_B.hdf5",
+        "num_steps": 144
+      },
+      "quality": {
+        "traj_steps_max": 144.0,
+        "len_diff": 0.0,
+        "tail_steps_max": 22.0,
+        "jump_ratio": 1.2531249329467415,
+        "overlap_area": 0.0,
+        "selection_score": 81.99374798840225
+      }
+    },
+    {
+      "group_id": 14,
+      "seed": 33,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "source_group_id": 23,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_14_A.hdf5",
+        "num_steps": 145
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_14_B.hdf5",
+        "num_steps": 145
+      },
+      "quality": {
+        "traj_steps_max": 145.0,
+        "len_diff": 0.0,
+        "tail_steps_max": 22.0,
+        "jump_ratio": 1.3112650774251122,
+        "overlap_area": 0.0,
+        "selection_score": 82.23795232275337
+      }
+    },
+    {
+      "group_id": 15,
+      "seed": 17,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "source_group_id": 11,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_15_A.hdf5",
+        "num_steps": 146
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_15_B.hdf5",
+        "num_steps": 148
+      },
+      "quality": {
+        "traj_steps_max": 148.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 22.0,
+        "jump_ratio": 1.3095925080163815,
+        "overlap_area": 0.0,
+        "selection_score": 82.68777524049145
+      }
+    },
+    {
+      "group_id": 16,
+      "seed": 66,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 17,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_16_A.hdf5",
+        "num_steps": 144
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_16_B.hdf5",
+        "num_steps": 145
+      },
+      "quality": {
+        "traj_steps_max": 145.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 21.0,
+        "jump_ratio": 1.2904823197965398,
+        "overlap_area": 0.0,
+        "selection_score": 82.9144695938962
+      }
+    },
+    {
+      "group_id": 17,
+      "seed": 42,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "source_group_id": 32,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_17_A.hdf5",
+        "num_steps": 145
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_17_B.hdf5",
+        "num_steps": 144
+      },
+      "quality": {
+        "traj_steps_max": 145.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 21.0,
+        "jump_ratio": 1.2905116951962503,
+        "overlap_area": 0.0,
+        "selection_score": 82.91535085588751
+      }
+    },
+    {
+      "group_id": 18,
+      "seed": 56,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool_part2",
+      "source_group_id": 7,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_18_A.hdf5",
+        "num_steps": 205
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_18_B.hdf5",
+        "num_steps": 205
+      },
+      "quality": {
+        "traj_steps_max": 205.0,
+        "len_diff": 0.0,
+        "tail_steps_max": 38.0,
+        "jump_ratio": 1.1181550502826,
+        "overlap_area": 0.0,
+        "selection_score": 83.1
+      }
+    },
+    {
+      "group_id": 19,
+      "seed": 62,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 13,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_19_A.hdf5",
+        "num_steps": 146
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_19_B.hdf5",
+        "num_steps": 144
+      },
+      "quality": {
+        "traj_steps_max": 146.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 21.0,
+        "jump_ratio": 1.2875336287212864,
+        "overlap_area": 0.0,
+        "selection_score": 83.8260088616386
+      }
+    },
+    {
+      "group_id": 20,
+      "seed": 58,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 10,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_20_A.hdf5",
+        "num_steps": 146
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_20_B.hdf5",
+        "num_steps": 148
+      },
+      "quality": {
+        "traj_steps_max": 148.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 23.0,
+        "jump_ratio": 1.312454217994675,
+        "overlap_area": 0.0,
+        "selection_score": 83.97362653984024
+      }
+    },
+    {
+      "group_id": 21,
+      "seed": 93,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part3",
+      "source_group_id": 7,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_21_A.hdf5",
+        "num_steps": 149
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_21_B.hdf5",
+        "num_steps": 146
+      },
+      "quality": {
+        "traj_steps_max": 149.0,
+        "len_diff": 3.0,
+        "tail_steps_max": 23.0,
+        "jump_ratio": 1.2831850186077047,
+        "overlap_area": 0.0,
+        "selection_score": 84.09555055823114
+      }
+    },
+    {
+      "group_id": 22,
+      "seed": 18,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2",
+      "source_group_id": 12,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_22_A.hdf5",
+        "num_steps": 147
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_22_B.hdf5",
+        "num_steps": 145
+      },
+      "quality": {
+        "traj_steps_max": 147.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 23.0,
+        "jump_ratio": 1.2712388880593184,
+        "overlap_area": 0.0,
+        "selection_score": 84.23716664177955
+      }
+    },
+    {
+      "group_id": 23,
+      "seed": 79,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 28,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_23_A.hdf5",
+        "num_steps": 144
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_23_B.hdf5",
+        "num_steps": 145
+      },
+      "quality": {
+        "traj_steps_max": 145.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 22.0,
+        "jump_ratio": 1.2980918847967513,
+        "overlap_area": 0.0,
+        "selection_score": 84.34275654390255
+      }
+    },
+    {
+      "group_id": 24,
+      "seed": 75,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool_part2",
+      "source_group_id": 20,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_24_A.hdf5",
+        "num_steps": 201
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_24_B.hdf5",
+        "num_steps": 203
+      },
+      "quality": {
+        "traj_steps_max": 203.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 40.0,
+        "jump_ratio": 1.1182426177329912,
+        "overlap_area": 0.0,
+        "selection_score": 87.5
+      }
+    },
+    {
+      "group_id": 25,
+      "seed": 65,
+      "source_root": "data_collection_outputs/recollect_20260413_horizontal_pool_tuned2_part2",
+      "source_group_id": 16,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_25_A.hdf5",
+        "num_steps": 145
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_25_B.hdf5",
+        "num_steps": 148
+      },
+      "quality": {
+        "traj_steps_max": 148.0,
+        "len_diff": 3.0,
+        "tail_steps_max": 24.0,
+        "jump_ratio": 1.311752378150427,
+        "overlap_area": 0.0,
+        "selection_score": 87.65257134451281
+      }
+    },
+    {
+      "group_id": 26,
+      "seed": 5,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 3,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_26_A.hdf5",
+        "num_steps": 207
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_26_B.hdf5",
+        "num_steps": 206
+      },
+      "quality": {
+        "traj_steps_max": 207.0,
+        "len_diff": 1.0,
+        "tail_steps_max": 38.0,
+        "jump_ratio": 1.1061868660078793,
+        "overlap_area": 0.0,
+        "selection_score": 88.6
+      }
+    },
+    {
+      "group_id": 27,
+      "seed": 8,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 6,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_27_A.hdf5",
+        "num_steps": 204
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_27_B.hdf5",
+        "num_steps": 200
+      },
+      "quality": {
+        "traj_steps_max": 204.0,
+        "len_diff": 4.0,
+        "tail_steps_max": 36.0,
+        "jump_ratio": 1.2501042562929345,
+        "overlap_area": 0.0,
+        "selection_score": 90.70312768878803
+      }
+    },
+    {
+      "group_id": 28,
+      "seed": 57,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool_part2",
+      "source_group_id": 8,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_28_A.hdf5",
+        "num_steps": 206
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_28_B.hdf5",
+        "num_steps": 208
+      },
+      "quality": {
+        "traj_steps_max": 208.0,
+        "len_diff": 2.0,
+        "tail_steps_max": 38.0,
+        "jump_ratio": 1.1104815795404204,
+        "overlap_area": 0.0,
+        "selection_score": 92.6
+      }
+    },
+    {
+      "group_id": 29,
+      "seed": 11,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 8,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_29_A.hdf5",
+        "num_steps": 204
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_29_B.hdf5",
+        "num_steps": 207
+      },
+      "quality": {
+        "traj_steps_max": 207.0,
+        "len_diff": 3.0,
+        "tail_steps_max": 39.0,
+        "jump_ratio": 1.115609229206756,
+        "overlap_area": 0.0,
+        "selection_score": 94.8
+      }
+    },
+    {
+      "group_id": 30,
+      "seed": 32,
+      "source_root": "data_collection_outputs/recollect_20260413_v16smooth_pool",
+      "source_group_id": 23,
+      "A": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_30_A.hdf5",
+        "num_steps": 189
+      },
+      "B": {
+        "path": "data_collection_outputs/recollect_20260413_v15fix_horizontal_30_11s_refined_v3/trajectories/group_30_B.hdf5",
+        "num_steps": 198
+      },
+      "quality": {
+        "traj_steps_max": 198.0,
+        "len_diff": 9.0,
+        "tail_steps_max": 39.0,
+        "jump_ratio": 1.2120827051328162,
+        "overlap_area": 0.0,
+        "selection_score": 96.66248115398449
+      }
+    }
+  ]
+}
